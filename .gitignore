@@ -1,0 +1,10 @@
+# Python related
+.venv/
+__pycache__/
+
+# Ignore data files
+data/raw/
+data/build/
+
+# macOS
+.DS_Store
