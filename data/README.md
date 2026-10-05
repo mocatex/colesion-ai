@@ -20,7 +20,7 @@ data/
     ├── BUILD.json            source URLs + checksums, seed, split counts
     ├── tables/*.parquet      4 tables, join on image_id
     ├── images/train/ISIC_0024/ISIC_0024306.jpg    10,015 (HAM10000)
-    ├── images/test/ISIC_0034/ISIC_0034524.jpg      1,512 (ISIC 2018 test)
+    ├── images/test/ISIC_0034/ISIC_0034524.jpg      1,412 (ISIC 2018 test, with crowd votes)
     └── masks/ISIC_0024/ISIC_0024306_segmentation.png    lesion masks, train only
 ```
 
@@ -32,7 +32,7 @@ Image and mask folders are split by the first digits of the ID (max 1,000 files 
 
 | table             | one row per          |   rows | what's in it                                                         |
 | :---------------- | :------------------- | -----: | :------------------------------------------------------------------- |
-| `items`           | image                | 11,527 | label, metadata, file paths, human difficulty (test only), split     |
+| `items`           | image                | 11,427 | label, metadata, file paths, human difficulty (test only), split     |
 | `reader_trials`   | reader × trial       | 12,260 | Barata 2023: answer, correct, reaction time, support, unaided/aided  |
 | `support_effects` | test image × support |  3,762 | Tschandl 2020: reader votes before/after each of 4 AI/crowd supports |
 | `readers`         | reader               |     89 | accuracy unaided vs aided, median reaction time, accuracy over time  |
@@ -44,15 +44,16 @@ items = pl.read_parquet("data/build/tables/items.parquet")
 
 ## Splits (`items.split`)
 
-| split     | from                         | share | used for                                                                     |
-| :-------- | :--------------------------- | ----: | :--------------------------------------------------------------------------- |
-| `fit`     | `ham_train` (no human data)  |  85 % | train the AI model                                                           |
-| `val`     | `ham_train`                  |  15 % | model selection (checkpoints, hyperparameters)                               |
-| `pool`    | `isic_test` (all human data) |  70 % | co-learning rounds: human and AI work through these, the AI learns           |
-| `probe`   | `isic_test`                  |  15 % | measure the **human** alone (P_H). Never trained on                          |
-| `holdout` | `isic_test`                  |  15 % | measure the **AI** alone (P_ML): the model's real test set. Never trained on |
+| split     | from                         | share | used for                                                                |
+| :-------- | :--------------------------- | ----: | :---------------------------------------------------------------------- |
+| `fit`     | `ham_train` (no human data)  |  85 % | train the AI model                                                      |
+| `val`     | `ham_train`                  |  15 % | model selection (checkpoints, hyperparameters)                          |
+| `pool`    | `isic_test` (all human data) |  80 % | co-learning rounds: human and AI work through these, the AI learns      |
+| `holdout` | `isic_test`                  |  20 % | AI alone (P_ML), human unaided (P_H), team (P_C), all on the same cases |
 
 `ham_train` has no test split on purpose: the AI is tested on `holdout`, because only `isic_test` images have human difficulty labels.
+
+`holdout` is read-only for the loop: its answers never go into training records or outcome feedback, for either side.
 
 - Drawn **per lesion**: all images of one lesion land in the same split.
 - Stratified on `dx` and, on test, on the `d_human` quartile, so no split is easier than another.
@@ -71,7 +72,7 @@ items = pl.read_parquet("data/build/tables/items.parquet")
 
 ## Good to know
 
-- Only 1,412 of the 1,512 test images have crowd votes. The other 100 have null `d_human`.
+- The 100 ISIC test images without crowd votes are left out (the mocked reader needs `d_human`). `reader_trials` still keeps all trials, so 394 of its rows (96 images) have no match in `items`.
 - `age`, `sex`, `localization`, `dx_type` and `lesion_id` come from the ISIC Archive for **both** splits, so they share one vocabulary.
 - Images are the original JPEGs, hard-linked from `raw/`. They are not copied or re-encoded.
 - Licence: CC BY-NC 4.0, non-commercial research only.

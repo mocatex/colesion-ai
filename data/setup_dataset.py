@@ -185,7 +185,7 @@ SEED = 2026
 # Split fractions per image source. Splits are drawn per lesion, so a lesion never straddles two splits.
 SPLITS = {
     "ham_train": {"fit": 0.85, "val": 0.15},
-    "isic_test": {"pool": 0.7, "probe": 0.15, "holdout": 0.15},
+    "isic_test": {"pool": 0.8, "holdout": 0.2},
 }
 
 CROWD_SHARES = [f"prob_h_dx_{c}" for c in CLASSES]
@@ -304,8 +304,9 @@ def assign_splits(items: pl.DataFrame) -> pl.DataFrame:
         .sort("lesion_id")
         .with_columns(d_quartile=pl.col("d_human").qcut(4, allow_duplicates=True).cast(pl.String))
     )
-    strata = ["split_source", "dx", "d_quartile"]  # d_quartile is null on train and on test images without votes
-    draw = random.Random(SEED).sample(range(lesions.height), lesions.height)
+    strata = ["split_source", "dx", "d_quartile"]  # d_quartile is null on train
+    # one reproducible random number per lesion, so adding/removing lesions never moves the others
+    draw = [random.Random(f"{SEED}:{lesion_id}").random() for lesion_id in lesions["lesion_id"]]
     pos = (pl.col("draw").rank().over(strata) - 0.5) / pl.len().over(strata)  # random position in [0, 1) per stratum
 
     def split_by_position(fractions: dict[str, float]) -> pl.Expr:
@@ -335,6 +336,8 @@ def build_items(crowd: pl.DataFrame) -> pl.DataFrame:
                 pl.format("masks/{}/{}_segmentation.png", shard, "image_id")
             ),
         )
+        # the mocked reader needs d_human, so test images without crowd votes are left out
+        .filter((pl.col("split_source") == "ham_train") | pl.col("d_human").is_not_null())
     )
     return (
         assign_splits(items)
