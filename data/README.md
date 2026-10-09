@@ -3,6 +3,7 @@
 ```bash
 uv run data/setup_dataset.py fetch   # download + verify everything into raw/
 uv run data/setup_dataset.py build   # raw/ -> build/
+uv run data/check_dataset.py         # leak checks + split summary -> docs/data-checks.md (rerun after every build)
 ```
 
 ## Layout
@@ -10,6 +11,7 @@ uv run data/setup_dataset.py build   # raw/ -> build/
 ```text
 data/
 ├── setup_dataset.py
+├── check_dataset.py          checks for leaks, splits, and sanity
 ├── raw/                      downloads, never edited (git-ignored)
 │   ├── isic2018/             challenge images + ground truth (train 10,015 · test 1,512)
 │   ├── ham10000/             lesion masks · 2020 human-AI study CSV · HAM metadata*
