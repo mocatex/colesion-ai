@@ -336,7 +336,7 @@ def build_items(crowd: pl.DataFrame) -> pl.DataFrame:
                 pl.format("masks/{}/{}_segmentation.png", shard, "image_id")
             ),
         )
-        # the mocked reader needs d_human, so test images without crowd votes are left out
+        # approx. 100 images without crowd votes are dropped
         .filter((pl.col("split_source") == "ham_train") | pl.col("d_human").is_not_null())
     )
     return (
