@@ -2,6 +2,10 @@
 .venv/
 __pycache__/
 
+# IDEs & Editors
+.idea/
+.vscode/
+
 # Ignore data files
 data/raw/
 data/build/
