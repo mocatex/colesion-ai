@@ -46,20 +46,28 @@ def train(cfg: TrainEntryCfg, force: bool = False) -> Run:
         best, best_epoch = state.get("best", -1.0), state.get("best_epoch")
         for epoch in range(state["start_epoch"], cfg.train.epochs):
             model.train()
-            losses = []
+            train_probs, train_labels = [], []
             for x, y in fit_loader:
-                loss = loss_fn(model(x.to(run.device)), y.to(run.device))
+                logits = model(x.to(run.device))
+                loss = loss_fn(logits, y.to(run.device))
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
                 step += 1
-                losses.append(loss.item())
+                train_probs.append(logits.detach().softmax(1).cpu())
+                train_labels.append(y)
                 if step % cfg.tracking.log_every_n_steps == 0:
-                    run.log({"batch_loss": losses[-1]}, step=step, epoch=epoch, split="train")
+                    run.log({"batch_loss": loss.item()}, step=step, epoch=epoch, split="train")
 
+            # train metrics with the same definitions as val, so the curves can share a panel.
+            # They are running values (augmented images, model changing during the epoch).
+            # batch_loss is the class-weighted loss that is actually optimised.
+            train_metrics = classification_metrics(
+                torch.cat(train_labels).numpy(), torch.cat(train_probs).numpy()
+            )
             probs = predict(model, val_loader, run.device)
             metrics = classification_metrics(val["dx_idx"].to_numpy(), probs)
-            run.log({"loss": np.mean(losses)}, step=step, epoch=epoch, split="train")
+            run.log(train_metrics, step=step, epoch=epoch, split="train")
             run.log(metrics, step=step, epoch=epoch, split="val")
             is_best = metrics["bal_acc"] > best
             if is_best:

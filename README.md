@@ -82,7 +82,7 @@ Every run gets a folder named by its start time and seed: `runs/<run.name>/2026-
 
 | file                                | what it is                                                                                                 |
 | :---------------------------------- | :--------------------------------------------------------------------------------------------------------- |
-| `curves.png`                        | Train loss and val loss / acc / bal_acc per epoch. Redrawn after every epoch.                              |
+| `curves.png`                        | loss, acc and bal_acc per epoch, each with a train and a val curve. Redrawn after every epoch.             |
 | `summary.json`                      | Final numbers (what `colesion report` shows).                                                              |
 | `metrics.jsonl`                     | Every logged value, one per line.                                                                          |
 | `log.txt`                           | Everything printed, plus the traceback if the run failed.                                                  |
@@ -92,7 +92,7 @@ Every run gets a folder named by its start time and seed: `runs/<run.name>/2026-
 | `checkpoints/last.pt`, `best.pt`    | End of the last finished epoch (resume point) / epoch with the best val balanced accuracy.                 |
 | `artifacts/predictions_val.parquet` | Per-image probabilities on `val`, for any later metric.                                                    |
 
-`colesion report` puts several runs side by side. Its table only shows the config values that differ between the runs (for a sweep: the swept ones). With `--out DIR`, it also writes `summary.csv` and one `curves.png` with a line per run.
+`colesion report` puts several runs side by side. Its table only shows the config values that differ between the runs (for a sweep: the swept ones). With `--out DIR`, it also writes `summary.csv` and one `curves.png`: colour = run, dashed = train, solid = val.
 
 ### Running the same config again
 

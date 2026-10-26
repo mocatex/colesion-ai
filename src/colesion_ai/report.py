@@ -5,6 +5,7 @@ from pathlib import Path
 
 import polars as pl
 from matplotlib.figure import Figure
+from matplotlib.lines import Line2D
 from matplotlib.ticker import MaxNLocator
 from omegaconf import OmegaConf
 
@@ -12,8 +13,11 @@ from colesion_ai.core.run import read_json
 
 log = logging.getLogger(__name__)
 
-# distinct line colours, always assigned in this order
+# one colour per run when comparing runs, always assigned in this order
 COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"]
+# one run: train and val get their own colour. Several runs: colour = run, line style = split
+SPLIT_COLORS = {"train": "#2a78d6", "val": "#eb6834"}
+SPLIT_STYLES = {"train": "--", "val": "-"}
 
 
 def report(paths, out: Path | None = None) -> pl.DataFrame:
@@ -57,39 +61,58 @@ def collect(paths) -> pl.DataFrame:
 
 
 def plot_curves(run_dirs: list[Path], path: Path) -> None:
-    """One panel per metric logged per epoch (train loss, val acc, ...), one line per run."""
+    """One panel per metric (loss, acc, bal_acc, ...), each with the train and the val curve."""
     if len(run_dirs) > len(COLORS):
         log.warning("plotting the first %d of %d runs", len(COLORS), len(run_dirs))
         run_dirs = run_dirs[: len(COLORS)]
-    names = [label(d) for d in run_dirs]
+    runs = [label(d) for d in run_dirs]
     rows = pl.concat(
-        pl.read_ndjson(d / "metrics.jsonl").with_columns(run=pl.lit(name))
-        for d, name in zip(run_dirs, names)
+        pl.read_ndjson(d / "metrics.jsonl").with_columns(run=pl.lit(run))
+        for d, run in zip(run_dirs, runs)
     )
     rows = (
-        # batch_loss is logged per step: too noisy, the per-epoch train loss is plotted instead
+        # batch_loss is logged per step: too noisy, the per-epoch loss is plotted instead
         rows.filter(pl.col("name") != "batch_loss")
-        .with_columns(panel=pl.concat_str("split", "name", separator=" "))
         # an epoch redone after a resume appears twice: keep the redone one
-        .unique(["run", "panel", "epoch"], keep="last", maintain_order=True)
+        .unique(["run", "name", "split", "epoch"], keep="last", maintain_order=True)
     )
-    panels = rows["panel"].unique(maintain_order=True)
+    metrics = rows["name"].unique(maintain_order=True)
+    styles, legend = line_styles(runs)
 
-    fig = Figure(figsize=(3.5 * len(panels), 3), layout="constrained")
-    for ax, panel in zip(fig.subplots(1, len(panels), squeeze=False)[0], panels):
-        for color, name in zip(COLORS, names):
-            curve = rows.filter(panel=panel, run=name).sort("epoch")
-            ax.plot(curve["epoch"], curve["value"], color=color, marker="o", ms=4, label=name)
-        ax.set_title(panel, loc="left", fontsize=10)
+    fig = Figure(figsize=(3.5 * len(metrics), 3.2), layout="constrained")
+    for ax, metric in zip(fig.subplots(1, len(metrics), squeeze=False)[0], metrics):
+        for (run, split), style in styles.items():
+            curve = rows.filter(run=run, name=metric, split=split).sort("epoch")
+            ax.plot(curve["epoch"], curve["value"], marker="o", ms=4, **style)
+        ax.set_title(metric, loc="left", fontsize=10)
         ax.set_xlabel("epoch", fontsize=8)
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
         ax.tick_params(labelsize=8)
         ax.grid(axis="y", alpha=0.3)
-    if len(run_dirs) > 1:
-        fig.legend(*ax.get_legend_handles_labels(), loc="outside lower center", ncols=4)
-    else:
-        fig.suptitle(names[0], fontsize=8)
+    if len(runs) == 1:
+        fig.suptitle(runs[0], fontsize=8)
+    # 2 columns: run names are long; with several runs the last row is "train, val"
+    fig.legend(handles=legend, loc="outside lower center", ncols=2, fontsize=8)
     fig.savefig(path, dpi=150)
+
+
+def line_styles(runs: list[str]) -> tuple[dict, list]:
+    """Colour and line style per (run, split), plus the legend entries that explain them.
+    One run: train and val get their own colour. Several runs: colour = run, line style = split."""
+    if len(runs) == 1:
+        styles = {(runs[0], s): {"color": c, "ls": "-"} for s, c in SPLIT_COLORS.items()}
+        legend = [
+            Line2D([], [], color=c, marker="o", ms=4, label=s) for s, c in SPLIT_COLORS.items()
+        ]
+        return styles, legend
+    styles = {
+        (run, s): {"color": c, "ls": ls}
+        for run, c in zip(runs, COLORS)
+        for s, ls in SPLIT_STYLES.items()
+    }
+    legend = [Line2D([], [], color=c, label=run) for run, c in zip(runs, COLORS)]
+    legend += [Line2D([], [], color="gray", ls=ls, label=s) for s, ls in SPLIT_STYLES.items()]
+    return styles, legend
 
 
 def label(run_dir: Path) -> str:
