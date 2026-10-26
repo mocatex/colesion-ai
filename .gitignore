@@ -15,3 +15,8 @@ data/build/
 
 # local files
 local_assets/
+
+runs/
+cache/
+mlruns/
+configs/env/local.yaml

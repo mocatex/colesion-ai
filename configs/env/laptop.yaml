@@ -1,0 +1,3 @@
+env:
+  device: mps
+  num_workers: 8

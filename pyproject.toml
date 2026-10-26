@@ -4,10 +4,34 @@ version = "0.1.0"
 requires-python = ">=3.12, <3.13"
 dependencies = [
     "imagehash>=4.3.2",
-    "numpy>=2.5.3",
-    "pillow>=12.3.0",
+    "matplotlib>=3.11.2",
+    "numpy>=2.5.4",
+    "omegaconf>=2.4.0",
+    "pillow>=13.0.0",
     "polars>=2.0.0",
     "pooch>=1.9.0",
+    "pytest>=9.1.1",
     "requests>=2.34.2",
+    "ruff>=0.17.1",
+    "scikit-learn>=1.9.1",
+    "timm>=1.0.30",
+    "torch>=2.14.1",
+    "torchvision>=0.29.1",
     "tqdm>=4.70.1",
 ]
+
+[project.scripts]
+colesion = "colesion_ai.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.13.1,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

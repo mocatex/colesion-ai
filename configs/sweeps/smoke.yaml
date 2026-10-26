@@ -1,0 +1,5 @@
+# 2 x 2 = 4 smoke runs. `uv run colesion sweep configs/sweeps/smoke.yaml --status` shows the plan.
+base: ../classifier/smoke.yaml
+grid:
+  run.seed: [1, 2]
+  train.lr: [1.0e-3, 3.0e-4]

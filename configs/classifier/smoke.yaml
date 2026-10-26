@@ -1,0 +1,8 @@
+# Phase 1 smoke run: tests configure -> run -> log -> stop -> resume, not the model.
+# CPU, no weight download, so it runs the same on every machine.
+env: { device: cpu, num_workers: 0 }
+run: { name: smoke }
+data: { image_size: 224, max_fit: 200, max_val: 50 }
+model: { backbone: resnet18, pretrained: false, freeze: none, head: linear }
+train: { epochs: 2, lr: 1.0e-3, batch_size: 32, class_weighting: inverse_freq }
+tracking: { log_every_n_steps: 2 }

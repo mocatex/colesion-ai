@@ -101,17 +101,23 @@ def describe(path: Path, url: str) -> dict:
     }
 
 
-def download(folder: str, url: str, known_hash: str | None = None, fname: str | None = None) -> dict:
+def download(
+    folder: str, url: str, known_hash: str | None = None, fname: str | None = None
+) -> dict:
     """Cached checksum-verified download. Zips are also extracted to <name>.zip.unzip/"""
     fname = fname or unquote(url.rsplit("/", 1)[-1])
     unzip = pooch.Unzip() if fname.endswith(".zip") else None
-    pooch.retrieve(url, known_hash, fname=fname, path=RAW / folder, processor=unzip, progressbar=True)
+    pooch.retrieve(
+        url, known_hash, fname=fname, path=RAW / folder, processor=unzip, progressbar=True
+    )
     return describe(RAW / folder / fname, url)
 
 
 def dataverse_files(doi: str) -> dict[str, dict]:
     """Original filename -> file record, for the latest version of a Dataverse dataset."""
-    version = get_json(f"{DATAVERSE}/api/datasets/:persistentId/", persistentId=doi)["data"]["latestVersion"]
+    version = get_json(f"{DATAVERSE}/api/datasets/:persistentId/", persistentId=doi)["data"][
+        "latestVersion"
+    ]
     files = [f["dataFile"] for f in version["files"]]
     return {f.get("originalFileName", f["filename"]): f for f in files}
 
@@ -143,7 +149,9 @@ def write_manifest(**fields) -> None:
     """Merge fields into BUILD.json and stamp it with the time, git commit and script hash."""
     path = BUILD / "BUILD.json"
     manifest = json.loads(path.read_text()) if path.exists() else {}
-    git = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=False)
+    git = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=False
+    )
     manifest |= {
         "built_utc": datetime.now(UTC).isoformat(timespec="seconds"),
         "git_commit": git.stdout.strip() or None,
@@ -235,7 +243,9 @@ def read_labels() -> pl.DataFrame:
         labels.append(
             onehot.unpivot(index="image", variable_name="dx")
             .filter(pl.col("value") == 1)
-            .select(image_id="image", split_source=pl.lit(source), dx=pl.col("dx").str.to_lowercase())
+            .select(
+                image_id="image", split_source=pl.lit(source), dx=pl.col("dx").str.to_lowercase()
+            )
         )
     return pl.concat(labels)
 
@@ -244,7 +254,9 @@ def read_archive_metadata() -> pl.DataFrame:
     """lesion_id / dx_type / age / sex / site for train AND test, so both splits share one vocabulary.
     (Same lesion grouping as HAM10000_metadata, but cleaner: no placeholder ages, fewer unknown sexes.)"""
     files = sorted((RAW / "isic_archive").glob("collection_*.csv"))
-    meta = pl.concat([pl.read_csv(f, infer_schema_length=None) for f in files], how="diagonal_relaxed")
+    meta = pl.concat(
+        [pl.read_csv(f, infer_schema_length=None) for f in files], how="diagonal_relaxed"
+    )
     return meta.select(
         image_id="isic_id",
         lesion_id="lesion_id",
@@ -260,7 +272,9 @@ def read_crowd_csv(path: Path) -> pl.DataFrame:
     df = pl.read_csv(path, decimal_comma=True)
     total = df.select(pl.sum_horizontal(CROWD_SHARES)).to_series()
     if not total.is_between(0.9, 1.0 + 1e-6).all():
-        raise ValueError(f"crowd shares sum to {total.min():.3f}..{total.max():.3f}; the parse is wrong")
+        raise ValueError(
+            f"crowd shares sum to {total.min():.3f}..{total.max():.3f}; the parse is wrong"
+        )
     return df
 
 
@@ -277,21 +291,31 @@ def recover_n(shares, max_n: int = 400, tol: float = 4e-3) -> int | None:
 
 def crowd_per_image(crowd: pl.DataFrame) -> pl.DataFrame:
     """Per test image: crowd votes and the reference model's probabilities (Tschandl 2020)."""
-    per_image = crowd.unique("image_id", keep="first")  # shares + model probs repeat on all 4 modality rows
+    per_image = crowd.unique(
+        "image_id", keep="first"
+    )  # shares + model probs repeat on all 4 modality rows
     n_raters = [recover_n(row) for row in per_image.select(CROWD_SHARES).rows()]
-    plogp = [pl.when(pl.col(s) > 0).then(pl.col(s) * pl.col(s).log()).otherwise(0.0) for s in CROWD_SHARES]
+    plogp = [
+        pl.when(pl.col(s) > 0).then(pl.col(s) * pl.col(s).log()).otherwise(0.0)
+        for s in CROWD_SHARES
+    ]
     return per_image.with_columns(n_raters=pl.Series(n_raters, dtype=pl.Int16)).select(
         "image_id",
         "n_raters",
         *CROWD_SHARES,  # kept until d_human is computed
         *[
-            (pl.col(f"prob_h_dx_{c}") * pl.col("n_raters")).round().cast(pl.Int16).alias(f"h_count_{c}")
+            (pl.col(f"prob_h_dx_{c}") * pl.col("n_raters"))
+            .round()
+            .cast(pl.Int16)
+            .alias(f"h_count_{c}")
             for c in CLASSES
         ],
         *[pl.col(f"prob_m_dx_{c}").cast(pl.Float32).alias(f"m_prob_{c}") for c in CLASSES],
         m_prob_mal=pl.col("prob_m_mal").cast(pl.Float32),
         h_top1=pl.concat_list(CROWD_SHARES).list.arg_max().replace_strict(dict(enumerate(CLASSES))),
-        h_entropy=(-pl.sum_horizontal(plogp) / math.log(len(CLASSES))).cast(pl.Float32),  # 0 => unanimous, 1 => uniform
+        h_entropy=(-pl.sum_horizontal(plogp) / math.log(len(CLASSES))).cast(
+            pl.Float32
+        ),  # 0 => unanimous, 1 => uniform
     )
 
 
@@ -307,30 +331,50 @@ def assign_splits(items: pl.DataFrame) -> pl.DataFrame:
     strata = ["split_source", "dx", "d_quartile"]  # d_quartile is null on train
     # one reproducible random number per lesion, so adding/removing lesions never moves the others
     draw = [random.Random(f"{SEED}:{lesion_id}").random() for lesion_id in lesions["lesion_id"]]
-    pos = (pl.col("draw").rank().over(strata) - 0.5) / pl.len().over(strata)  # random position in [0, 1) per stratum
+    pos = (pl.col("draw").rank().over(strata) - 0.5) / pl.len().over(
+        strata
+    )  # random position in [0, 1) per stratum
 
     def split_by_position(fractions: dict[str, float]) -> pl.Expr:
-        return pos.cut(list(accumulate(fractions.values()))[:-1], labels=list(fractions)).cast(pl.String)
+        return pos.cut(list(accumulate(fractions.values()))[:-1], labels=list(fractions)).cast(
+            pl.String
+        )
 
     lesions = lesions.with_columns(draw=pl.Series(draw)).with_columns(
-        split=pl.coalesce([pl.when(pl.col("split_source") == s).then(split_by_position(f)) for s, f in SPLITS.items()])
+        split=pl.coalesce(
+            [
+                pl.when(pl.col("split_source") == s).then(split_by_position(f))
+                for s, f in SPLITS.items()
+            ]
+        )
     )
-    return items.join(lesions.select("split_source", "lesion_id", "split"), on=["split_source", "lesion_id"])
+    return items.join(
+        lesions.select("split_source", "lesion_id", "split"), on=["split_source", "lesion_id"]
+    )
 
 
 def build_items(crowd: pl.DataFrame) -> pl.DataFrame:
     """One row per image."""
     folder = {"ham_train": "train", "isic_test": "test"}
-    shard = pl.col("image_id").str.head(9)  # ISIC_0024306 -> ISIC_0024: max 1k files per folder (HF allows 10k)
+    shard = pl.col("image_id").str.head(
+        9
+    )  # ISIC_0024306 -> ISIC_0024: max 1k files per folder (HF allows 10k)
     items = (
         read_labels()
         .join(read_archive_metadata(), on="image_id", how="left")
         .join(crowd_per_image(crowd), on="image_id", how="left")
         .with_columns(
-            dx_idx=pl.col("dx").replace_strict(CLASSES, list(range(len(CLASSES))), return_dtype=pl.Int8),
-            d_human=at_dx("prob_h_dx_").cast(pl.Float32),  # = h_count[dx] / n_raters, also defined if unanimous
+            dx_idx=pl.col("dx").replace_strict(
+                CLASSES, list(range(len(CLASSES))), return_dtype=pl.Int8
+            ),
+            d_human=at_dx("prob_h_dx_").cast(
+                pl.Float32
+            ),  # = h_count[dx] / n_raters, also defined if unanimous
             image_path=pl.format(
-                "images/{}/{}/{}.jpg", pl.col("split_source").replace_strict(folder), shard, "image_id"
+                "images/{}/{}/{}.jpg",
+                pl.col("split_source").replace_strict(folder),
+                shard,
+                "image_id",
             ),
             mask_path=pl.when(pl.col("split_source") == "ham_train").then(
                 pl.format("masks/{}/{}_segmentation.png", shard, "image_id")
@@ -385,7 +429,9 @@ def read_reader_log(path: Path) -> pl.DataFrame:
     )
     odd = trials.group_by(key).len().filter(pl.col("len") != 2)
     if odd.height:
-        print(f"WARNING: {odd.height} session/image groups are not pairs (sizes {odd['len'].unique().to_list()})")
+        print(
+            f"WARNING: {odd.height} session/image groups are not pairs (sizes {odd['len'].unique().to_list()})"
+        )
     return trials
 
 
@@ -401,7 +447,10 @@ def build_readers(trials: pl.DataFrame) -> pl.DataFrame:
             acc_aided=pl.col("correct").filter(pl.col("phase") == "aided").mean(),
             median_rt_sec=pl.col("rt_sec").median(),
             acc_by_trial_third=pl.concat_list(
-                [pl.col("correct").filter(pl.col("trial_no").is_between(a, b)).mean() for a, b in thirds]
+                [
+                    pl.col("correct").filter(pl.col("trial_no").is_between(a, b)).mean()
+                    for a, b in thirds
+                ]
             ),
         )
         .sort("reader_id")
@@ -435,7 +484,10 @@ def build_support_effects(crowd: pl.DataFrame, items: pl.DataFrame) -> pl.DataFr
 
 def link_images(items: pl.DataFrame) -> None:
     """Hard-link images and masks into build/: instant, no extra disk, bytes exactly as shipped."""
-    for old in ("images", "masks"):  # start clean so no stale files from an older layout get uploaded
+    for old in (
+        "images",
+        "masks",
+    ):  # start clean so no stale files from an older layout get uploaded
         shutil.rmtree(BUILD / old, ignore_errors=True)
     for image_id, source, image_path, mask_path in items.select(
         "image_id", "split_source", "image_path", "mask_path"
@@ -460,7 +512,9 @@ def check_difficulty(items: pl.DataFrame) -> float:
 
 
 def build() -> None:
-    crowd = read_crowd_csv(RAW / "ham10000/ISIC2018_Task3_Test_NatureMedicine_AI_Interaction_Benefit.csv")
+    crowd = read_crowd_csv(
+        RAW / "ham10000/ISIC2018_Task3_Test_NatureMedicine_AI_Interaction_Benefit.csv"
+    )
     trials = read_reader_log(RAW / "barata2023/reader_data_nature_medicine.csv")
     items = build_items(crowd)
     tables = {
@@ -488,7 +542,9 @@ def build() -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("stage", choices=["fetch", "build", "all"])
     stage = parser.parse_args().stage
     if stage in ("fetch", "all"):

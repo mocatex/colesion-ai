@@ -41,6 +41,7 @@ Image and mask folders are split by the first digits of the ID (max 1,000 files 
 
 ```python
 import polars as pl
+
 items = pl.read_parquet("data/build/tables/items.parquet")
 ```
 

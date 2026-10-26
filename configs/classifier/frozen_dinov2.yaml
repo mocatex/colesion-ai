@@ -1,0 +1,5 @@
+inherit: [ ../env/laptop.yaml ]
+run: { name: clf-frozen-dinov2 }
+data: { image_size: 224 }
+model: { backbone: dinov2_vits14, freeze: all, head: linear }
+train: { epochs: 30, lr: 1e-3, batch_size: 256, class_weighting: inverse_freq }
