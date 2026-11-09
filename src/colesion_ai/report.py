@@ -20,12 +20,15 @@ SPLIT_COLORS = {"train": "#2a78d6", "val": "#eb6834"}
 SPLIT_STYLES = {"train": "--", "val": "-"}
 
 
-def report(paths, out: Path | None = None) -> pl.DataFrame:
-    """Print one row per run below `paths`. With `out`, also write summary.csv and curves.png."""
+def report(paths, out: Path | None = None, sort: str | None = None) -> pl.DataFrame:
+    """Print one row per run below `paths`, best first if `sort` names a column (e.g.
+    best_val_bal_acc). With `out`, also write summary.csv and curves.png."""
     table = collect(paths)
     if table.is_empty():
         log.warning("no runs found below %s", ", ".join(map(str, paths)))
         return table
+    if sort:
+        table = table.sort(sort, descending=True, nulls_last=True)
     with pl.Config(
         tbl_formatting="MARKDOWN",
         tbl_hide_column_data_types=True,
@@ -33,6 +36,7 @@ def report(paths, out: Path | None = None) -> pl.DataFrame:
         tbl_rows=-1,
         tbl_cols=-1,
         tbl_width_chars=1000,
+        fmt_str_lengths=100,
         float_precision=4,
     ):
         print(table)
