@@ -1,0 +1,9 @@
+# Tune how the head is trained on the frozen (not fine-tuned) DINOv2 embeddings, so the frozen
+# baseline is fair before it is compared with fine-tuning. The embeddings are cached: ~1 min per run.
+# The best epoch is kept anyway (best.pt), so `epochs` is only an upper limit.
+base: ../classifier/frozen_dinov2.yaml
+grid:
+  train.lr: [ 3e-4, 1e-3, 3e-3, 1e-2 ]
+  train.class_weighting: [ none, inverse_freq ]
+  train.epochs: [ 100 ]
+  model.head: [ linear, mlp ]

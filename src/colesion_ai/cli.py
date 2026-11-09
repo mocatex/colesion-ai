@@ -1,4 +1,4 @@
-"""colesion train | sweep | report | data-check (see "Usage" in the README)"""
+"""colesion embed | train | sweep | evaluate | export | report | data-check (see "Usage" in the README)"""
 
 import argparse
 import logging
@@ -9,6 +9,17 @@ from pathlib import Path
 from colesion_ai.core.config import load_config
 
 REPO = Path(__file__).resolve().parents[2]
+
+
+def cmd_embed(args) -> int:
+    from colesion_ai.data.embeddings import cache_path, compute_embeddings
+
+    cfg = load_config(args.config, args.overrides)
+    if cache_path(cfg).exists():
+        print(f"already cached: {cache_path(cfg)}")
+    else:
+        compute_embeddings(cfg, cache_path(cfg))
+    return 0
 
 
 def cmd_train(args) -> int:
@@ -37,10 +48,24 @@ def cmd_sweep(args) -> int:
     return 1 if failed else 0
 
 
+def cmd_evaluate(args) -> int:
+    from colesion_ai.evaluate import evaluate
+
+    evaluate(args.run, args.split)
+    return 0
+
+
+def cmd_export(args) -> int:
+    from colesion_ai.export import export
+
+    export(args.run)
+    return 0
+
+
 def cmd_report(args) -> int:
     from colesion_ai.report import report
 
-    return 0 if report(args.paths, args.out).height else 1
+    return 0 if report(args.paths, args.out, args.sort).height else 1
 
 
 def cmd_data_check(args) -> int:
@@ -52,6 +77,11 @@ def main() -> None:
     commands = parser.add_subparsers(dest="command", required=True)
     overrides = {"nargs": "*", "help": "key.sub=value, e.g. train.lr=3e-4 run.seed=2"}
     force = {"action": "store_true", "help": "start a new run even if this config already has one"}
+
+    embed = commands.add_parser("embed", help="cache the backbone's embeddings of all images")
+    embed.add_argument("config", type=Path)
+    embed.add_argument("overrides", **overrides)
+    embed.set_defaults(func=cmd_embed)
 
     train = commands.add_parser("train", help="train one config")
     train.add_argument("config", type=Path)
@@ -66,9 +96,19 @@ def main() -> None:
     sweep.add_argument("--status", action="store_true", help="only list the runs and their status")
     sweep.set_defaults(func=cmd_sweep)
 
+    evaluate = commands.add_parser("evaluate", help="metrics + confusion matrix of a finished run")
+    evaluate.add_argument("run", type=Path, help="run folder, e.g. runs/clf-frozen-dinov2/<folder>")
+    evaluate.add_argument("--split", default="val", help="val (default) or, at the end, holdout")
+    evaluate.set_defaults(func=cmd_evaluate)
+
+    export = commands.add_parser("export", help="logits, embeddings and heatmaps for the dashboard")
+    export.add_argument("run", type=Path, help="run folder, e.g. runs/clf-frozen-dinov2/<folder>")
+    export.set_defaults(func=cmd_export)
+
     report = commands.add_parser("report", help="compare runs: one table (+ csv and plot)")
     report.add_argument("paths", nargs="*", type=Path, default=[Path("runs")])
     report.add_argument("--out", type=Path, help="also write summary.csv and curves.png here")
+    report.add_argument("--sort", help="column to sort by, best first, e.g. best_val_bal_acc")
     report.set_defaults(func=cmd_report)
 
     check = commands.add_parser("data-check", help="leak and split checks on data/build")

@@ -1,4 +1,4 @@
-"""Minimal image loading for phase 1. Phase 2 adds the image and embedding caches."""
+"""Items (one row per image) and image loading."""
 
 import json
 import signal
@@ -16,12 +16,17 @@ CLASSES = ("akiec", "bcc", "bkl", "df", "mel", "nv", "vasc")
 MEAN, STD = (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)
 
 
-def load_split(data_root, split: str, limit: int | None = None) -> pl.DataFrame:
+def load_items(data_root) -> pl.DataFrame:
+    """All 11,427 images (every split) with their metadata, from items.parquet."""
     root = Path(data_root)
     built = tuple(json.loads((root / "BUILD.json").read_text())["classes"])
     if built != CLASSES:
         raise ValueError(f"class order in BUILD.json is {built}, the code expects {CLASSES}")
-    items = pl.read_parquet(root / "tables" / "items.parquet").filter(pl.col("split") == split)
+    return pl.read_parquet(root / "tables" / "items.parquet")
+
+
+def load_split(data_root, split: str, limit: int | None = None) -> pl.DataFrame:
+    items = load_items(data_root).filter(pl.col("split") == split)
     if limit is not None and limit < items.height:
         items = items.sample(n=limit, seed=0)  # same subset for every seed and every resume
     return items
@@ -35,7 +40,9 @@ def image_transform(size: int, train: bool) -> T.Compose:
             T.RandomVerticalFlip(),
         ]
     else:
-        steps = [T.Resize(size), T.CenterCrop(size)]
+        # squash the whole image to a square (no crop): every pixel is seen, so a heatmap maps
+        # back onto the original image exactly
+        steps = [T.Resize((size, size))]
     return T.Compose(
         [T.ToImage(), *steps, T.ToDtype(torch.float32, scale=True), T.Normalize(MEAN, STD)]
     )

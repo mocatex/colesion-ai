@@ -37,16 +37,18 @@ class DataCfg:
 @dataclass
 class ModelCfg:
     backbone: str = "dinov2_vits14"
-    pretrained: bool = True
-    freeze: str = "all"  # all | none
+    # pretrained (published weights) | random (smoke runs) | a run folder that fine-tuned this backbone
+    weights: str = "pretrained"
+    # all: train only the head, on cached embeddings (seconds) | none: fine-tune backbone + head on images
+    freeze: str = "all"
     head: str = "linear"
-    retrain: str = "head"  # head | full
 
 
 @dataclass
 class TrainCfg:
     epochs: int = 50
-    lr: float = 1e-3
+    lr: float = 1e-3  # head
+    backbone_lr: float = 1e-5  # backbone, only when fine-tuning (freeze: none)
     batch_size: int = 256
     class_weighting: str = "inverse_freq"
     weight_decay: float = 0.0

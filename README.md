@@ -48,14 +48,17 @@ We have two possible ways to download and build the dataset:
 
 Everything goes through one command, `uv run colesion ...`. How the code works inside: [docs/codebase-explained.md](docs/codebase-explained.md).
 
-| command                                        | what it does                                                                       |
-| :--------------------------------------------- | :--------------------------------------------------------------------------------- |
-| `colesion train <config.yaml> [key=value ...]` | Trains one config: one run, one folder in `runs/`.                                 |
-| `colesion sweep <sweep.yaml> [key=value ...]`  | Trains every grid point of a sweep, one after the other (= many `train` calls).    |
-| `colesion sweep <sweep.yaml> --status`         | Lists the grid points and whether each is done. Trains nothing.                    |
-| `colesion report [folders] [--out DIR]`        | Compares runs: prints one table row per run; `--out` also writes a csv and a plot. |
-| `colesion data-check`                          | Leak and split checks on `data/build/` (after every dataset build).                |
-| `uv run pytest`                                | Tests, about 4 s.                                                                  |
+| command                                              | what it does                                                                                                                |
+| :--------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------- |
+| `colesion embed <config.yaml> [key=value ...]`       | Caches the backbone's embeddings of all images (`train` also does this when needed).                                        |
+| `colesion train <config.yaml> [key=value ...]`       | Trains one config: one run, one folder in `runs/`.                                                                          |
+| `colesion sweep <sweep.yaml> [key=value ...]`        | Trains every grid point of a sweep, one after the other (= many `train` calls).                                             |
+| `colesion sweep <sweep.yaml> --status`               | Lists the grid points and whether each is done. Trains nothing.                                                             |
+| `colesion evaluate <run folder> [--split val]`       | Metrics, per-class table and confusion matrix of a finished run (no retraining).                                            |
+| `colesion export <run folder>`                       | Logits, embeddings and Grad-CAM heatmaps for Jonas's dashboard.                                                             |
+| `colesion report [folders] [--out DIR] [--sort COL]` | Compares runs: one table row per run (`--sort best_val_bal_acc` puts the best first); `--out` also writes a csv and a plot. |
+| `colesion data-check`                                | Leak and split checks on `data/build/` (after every dataset build).                                                         |
+| `uv run pytest`                                      | Tests, about 4 s.                                                                                                           |
 
 ### Typical workflow
 
@@ -64,15 +67,34 @@ Everything goes through one command, `uv run colesion ...`. How the code works i
 uv run pytest
 uv run colesion train configs/classifier/smoke.yaml
 
-# 2. One experiment: a YAML file in configs/, then train it
+# 2. One experiment: a YAML file in configs/, train it, look at it class by class
 uv run colesion train configs/classifier/frozen_dinov2.yaml
 uv run colesion train configs/classifier/frozen_dinov2.yaml train.lr=3e-4   # try one value, no new file
+uv run colesion evaluate runs/clf-frozen-dinov2/<folder>                    # on val
 
 # 3. Compare settings or seeds: a sweep file, check the plan, run it, compare
 uv run colesion sweep configs/sweeps/smoke.yaml --status
 uv run colesion sweep configs/sweeps/smoke.yaml
-uv run colesion report runs/smoke --out runs/_reports/smoke
+uv run colesion report runs/smoke --sort best_val_bal_acc --out runs/_reports/smoke
 ```
+
+### The classifier pipeline
+
+The backbone (image -> embedding) is the only expensive part, so images are touched only to fine-tune it, to cache its embeddings and for the heatmaps. Everything else runs on the cached embeddings in seconds.
+
+```text
+images ── train, model.freeze: none ──► fine-tuned backbone + head      optional, once (variant b)
+images ── embed ──────────────────────► cache/embeddings/<backbone>_<size>_<weights>.parquet
+                                          all 11,427 images, once per backbone version (~2.5 min on MPS)
+cache ─── train, model.freeze: all ───► trained head (+ curves)          seconds
+cache + head ── evaluate ─────────────► <run>/eval/<split>/: metrics, per-class table, confusion matrix
+cache + head ── export ───────────────► <run>/export/: Jonas's parquet; images ─► Grad-CAM heatmaps
+```
+
+- `model.freeze: all` trains only the head, on the cached embeddings. `model.freeze: none` fine-tunes backbone and head together on images (`configs/classifier/finetune_dinov2.yaml`).
+- `model.weights` says which backbone: `pretrained` (published weights), `random` (smoke runs) or a run folder that fine-tuned it. Example: freeze a fine-tuned backbone and train new heads on it with `model.weights=runs/clf-finetune-dinov2/<folder> model.freeze=all`.
+- `evaluate` and `export` always use the run's best epoch (`checkpoints/best.pt`). Choose models on `val`; use `--split holdout` only for the final candidates.
+- `export` writes, for all 11,427 images, the 7 uncalibrated logits (`logit_akiec` ... `logit_vasc`) and the L2-normalised embedding, plus a 600×450 Grad-CAM heatmap (top-1 class, turbo colours) for the `pool` and `holdout` images. Join it with `items.parquet` on `image_id`. The heatmaps belong to that run's head.
 
 **`train` or `sweep`?** Both train. Use `train` for one config. Use `sweep` when you want the same config with a few values changed (learning rates, backbones, seeds, ...). A sweep file lists the values (`base:` config + `grid:`), and `sweep` calls `train` once per combination.
 

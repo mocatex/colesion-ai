@@ -1,0 +1,7 @@
+# Variant (b): fine-tune DINOv2 ViT-S/14 + head on images, once. Afterwards its backbone can be
+# frozen and reused: model.weights=runs/clf-finetune-dinov2/<folder>, model.freeze=all.
+inherit: [ ../env/laptop.yaml ]
+run: { name: clf-finetune-dinov2 }
+data: { image_size: 224 }
+model: { backbone: dinov2_vits14, weights: pretrained, freeze: none, head: linear }
+train: { epochs: 15, lr: 1.0e-3, backbone_lr: 1.0e-5, batch_size: 32, weight_decay: 0.05, class_weighting: inverse_freq }
