@@ -19,11 +19,12 @@ That's all a new trainer needs. How signals are caught, RNG is saved, and old ru
 
 ## Classifier pipeline (phase 2)
 
-- **Backbone -> embedding -> head.** The head is always an `nn.Linear` on embeddings. So once the backbone is fixed, everything else (head training, evaluate, export, later the loop) runs on cached embeddings, without images.
+- **Backbone -> embedding -> head.** The head (`model.head`: `linear` or `mlp`) always sees embeddings. So once the backbone is fixed, everything else (head training, evaluate, export, later the loop) runs on cached embeddings, without images.
 - **Embedding cache** (`data/embeddings.py`): `cache/embeddings/<backbone>_<size>_<weights>.parquet`, all 11,427 images, computed on first use.
 - **Two ways to train** (`train.py`, same epoch loop):
     - `model.freeze: all`: head only, on the cache (seconds).
     - `model.freeze: none`: backbone + head on images (fine-tuning). The backbone gets `train.backbone_lr`.
+    - `train.schedule`: `constant` or `cosine` (`lr_schedule`: warm-up over epoch 1, then cosine down to 0; stepped per batch, saved in the checkpoint).
 - **Checkpoints** hold `head` (and `backbone` when fine-tuned). `load_run(run_dir)` returns the run's config + best head. Its config's `model.weights` then points at the backbone that makes this head's embeddings.
 - **Eval transform squashes** the whole 600×450 image to a square (no crop), so heatmaps map back pixel-exactly.
 
@@ -36,16 +37,16 @@ That's all a new trainer needs. How signals are caught, RNG is saved, and old ru
 | `core/run.py`          | `Run`: one run = one folder. `restore`, `log`, `save_checkpoint`, `with run:` (status `done`/`interrupted`/`failed`/`running`), `summary`, `device`.                                                                                |
 | `core/runtime.py`      | `seed_everything`, `rng_state` / `set_rng_state`, `resolve_device`.                                                                                                                                                                 |
 | `core/sweep.py`        | `expand(path, overrides)` → `(label, cfg)` per grid point; `run_sweep` trains each, skips finished ones (via `train`'s own run-finding).                                                                                            |
-| `train.py`             | Head on cached embeddings (`freeze: all`) or fine-tune on images (`freeze: none`); AdamW + class-weighted CE; per-epoch train/val metrics, checkpoints, `curves.png`.                                                               |
+| `train.py`             | Head on cached embeddings (`freeze: all`) or fine-tune on images (`freeze: none`); AdamW + class-weighted CE + `lr_schedule`; per-epoch train/val metrics, checkpoints, `curves.png`.                                                               |
 | `evaluate.py`          | `evaluate(run_dir, split)`: best head on cached embeddings → `eval/<split>/` with `metrics.json` (acc, bal_acc, macro_auc, mel_recall, ...), `per_class.csv`, `confusion.csv` + `.png`, logits; adds `<split>_*` to `summary.json`. |
 | `export.py`            | `export(run_dir)`: Jonas's `export/classifier_outputs.parquet` (logits, L2-normalised embeddings, heatmap paths, all images) + `export/heatmaps/*.png` for `pool` + `holdout`.                                                      |
-| `report.py`            | `collect` (table of differing config values + summary) and `plot_curves`.                                                                                                                                                           |
+| `report.py`            | `collect` (table of differing config values + summary), `average_seeds` (one row per setting, mean + std over seeds) and `plot_curves`.                                                                                             |
 | `data/dataset.py`      | `load_items` (all images), `load_split`, `image_transform` (eval = squash, no crop), `ImageDataset`. `CLASSES` fixed; ImageNet normalisation.                                                                                       |
 | `data/embeddings.py`   | `load_embeddings(cfg, items)` (computes + caches on first use), `cache_path`, `compute_embeddings`.                                                                                                                                 |
-| `models/classifier.py` | `build_backbone` (timm; `model.weights`: pretrained / random / fine-tuned run), `build_head` (`model.head`: only `linear` so far), `load_run`, `load_checkpoint`.                                                                   |
+| `models/classifier.py` | `build_backbone` (timm; `model.weights`: pretrained / random / fine-tuned run), `build_head` (`model.head`: `linear` / `mlp`), `load_run`, `load_checkpoint`.                                                                   |
 | `models/saliency.py`   | `grad_cam(backbone, head, x)` (own ~20 lines, top-1 class) and `cam_layer` (CNN: last block; ViT: input of the last attention).                                                                                                     |
 | `configs/`             | `env/laptop.yaml`; `classifier/*.yaml` (one per experiment); `sweeps/*.yaml` (`base` + `grid`).                                                                                                                                     |
-| `tests/`               | 12 tests (~30 s). The important one: interrupt + resume ⇒ identical weights. Plus Grad-CAM shapes for a CNN and a ViT.                                                                                                              |
+| `tests/`               | 13 tests (~30 s). The important one: interrupt + resume ⇒ identical weights. Plus Grad-CAM shapes and the cosine schedule.                                                                                                              |
 
 ## How to use
 

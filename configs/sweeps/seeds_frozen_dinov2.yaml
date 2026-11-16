@@ -1,0 +1,10 @@
+# The best head settings of head_frozen_dinov2.yaml again with two more seeds (seed 42 is already
+# there), so each setting has 3 runs. Compare the means:
+#   colesion report runs/clf-frozen-dinov2 --mean-over-seeds --sort best_val_bal_acc
+base: ../classifier/frozen_dinov2.yaml
+grid:
+  train.class_weighting: [ inverse_freq ]
+  train.epochs: [ 100 ]
+  model.head: [ linear, mlp ]
+  train.lr: [ 3e-4, 1e-3 ]
+  run.seed: [ 1, 2, 3, 4 ]

@@ -1,0 +1,5 @@
+# The fine-tune with 3 seeds, so its result is a mean +- std and not one lucky run. ~50 min each.
+#   colesion report runs/clf-finetune-dinov2 --mean-over-seeds --sort best_val_bal_acc
+base: ../classifier/finetune_dinov2.yaml
+grid:
+  run.seed: [ 42, 1, 2 ]

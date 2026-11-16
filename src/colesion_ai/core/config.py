@@ -52,6 +52,8 @@ class TrainCfg:
     batch_size: int = 256
     class_weighting: str = "inverse_freq"
     weight_decay: float = 0.0
+    # constant | cosine (warm-up over the first epoch, then down to 0 by the last step)
+    schedule: str = "constant"
 
 
 @dataclass

@@ -2,12 +2,14 @@
 fine-tune backbone + head on images (`model.freeze: none`). Both share the epoch loop below."""
 
 import logging
+import math
 
 import numpy as np
 import polars as pl
 import torch
 from scipy.special import softmax
 from torch import nn
+from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import DataLoader, TensorDataset
 
 from colesion_ai.core.config import TrainEntryCfg
@@ -63,10 +65,11 @@ def train(cfg: TrainEntryCfg, force: bool = False) -> Run:
         fit_loader = make_loader(fit_data, cfg, workers, shuffle=True)
         val_loader = make_loader(val_data, cfg, workers, shuffle=False)
         optimizer = torch.optim.AdamW(groups, weight_decay=cfg.train.weight_decay)
+        scheduler = lr_schedule(optimizer, cfg.train.schedule, len(fit_loader), cfg.train.epochs)
         weights = class_weights(fit["dx_idx"].to_numpy(), cfg.train.class_weighting)
         loss_fn = nn.CrossEntropyLoss(weight=weights).to(run.device)
 
-        state = run.restore(**parts, optimizer=optimizer)
+        state = run.restore(**parts, optimizer=optimizer, scheduler=scheduler)
         step = state.get("step", 0)
         best, best_epoch = state.get("best", -1.0), state.get("best_epoch")
         for epoch in range(state["start_epoch"], cfg.train.epochs):
@@ -78,6 +81,7 @@ def train(cfg: TrainEntryCfg, force: bool = False) -> Run:
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
+                scheduler.step()
                 step += 1
                 train_logits.append(logits.detach().cpu())
                 train_labels.append(y)
@@ -90,6 +94,8 @@ def train(cfg: TrainEntryCfg, force: bool = False) -> Run:
             train_metrics = classification_metrics(
                 torch.cat(train_labels).numpy(), torch.cat(train_logits).numpy()
             )
+            # the head's lr at the end of the epoch; the backbone's follows the same schedule
+            train_metrics["lr"] = optimizer.param_groups[-1]["lr"]
             val_logits = predict(model, val_loader, run.device)
             metrics = classification_metrics(val["dx_idx"].to_numpy(), val_logits)
             run.log(train_metrics, step=step, epoch=epoch, split="train")
@@ -100,6 +106,7 @@ def train(cfg: TrainEntryCfg, force: bool = False) -> Run:
             run.save_checkpoint(
                 **parts,
                 optimizer=optimizer,
+                scheduler=scheduler,
                 epoch=epoch,
                 is_best=is_best,
                 step=step,
@@ -132,6 +139,24 @@ def make_loader(dataset, cfg: TrainEntryCfg, workers: int, shuffle: bool) -> Dat
         num_workers=workers,
         worker_init_fn=ignore_signals,
     )
+
+
+def lr_schedule(optimizer, schedule: str, steps_per_epoch: int, epochs: int) -> LambdaLR:
+    """`train.schedule` as a factor on every learning rate, updated after each step.
+    cosine: rises over the first epoch (a fresh head must not shake the pretrained backbone),
+    then falls to 0 along a cosine, so the last epochs only fine-tune and the val curve settles."""
+    warmup, total = steps_per_epoch, steps_per_epoch * epochs
+
+    def cosine(step: int) -> float:
+        if step < warmup:
+            return (step + 1) / warmup
+        return 0.5 * (1 + math.cos(math.pi * (step - warmup) / max(1, total - warmup)))
+
+    if schedule == "constant":
+        return LambdaLR(optimizer, lambda step: 1.0)
+    if schedule == "cosine":
+        return LambdaLR(optimizer, cosine)
+    raise ValueError(f"train.schedule must be 'constant' or 'cosine', got {schedule!r}")
 
 
 def class_weights(labels: np.ndarray, scheme: str) -> torch.Tensor | None:

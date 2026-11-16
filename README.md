@@ -48,17 +48,17 @@ We have two possible ways to download and build the dataset:
 
 Everything goes through one command, `uv run colesion ...`. How the code works inside: [docs/codebase-explained.md](docs/codebase-explained.md).
 
-| command                                              | what it does                                                                                                                |
-| :--------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------- |
-| `colesion embed <config.yaml> [key=value ...]`       | Caches the backbone's embeddings of all images (`train` also does this when needed).                                        |
-| `colesion train <config.yaml> [key=value ...]`       | Trains one config: one run, one folder in `runs/`.                                                                          |
-| `colesion sweep <sweep.yaml> [key=value ...]`        | Trains every grid point of a sweep, one after the other (= many `train` calls).                                             |
-| `colesion sweep <sweep.yaml> --status`               | Lists the grid points and whether each is done. Trains nothing.                                                             |
-| `colesion evaluate <run folder> [--split val]`       | Metrics, per-class table and confusion matrix of a finished run (no retraining).                                            |
-| `colesion export <run folder>`                       | Logits, embeddings and Grad-CAM heatmaps for Jonas's dashboard.                                                             |
-| `colesion report [folders] [--out DIR] [--sort COL]` | Compares runs: one table row per run (`--sort best_val_bal_acc` puts the best first); `--out` also writes a csv and a plot. |
-| `colesion data-check`                                | Leak and split checks on `data/build/` (after every dataset build).                                                         |
-| `uv run pytest`                                      | Tests, about 4 s.                                                                                                           |
+| command                                                                  | what it does                                                                                                                                                                                        |
+| :----------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `colesion embed <config.yaml> [key=value ...]`                           | Caches the backbone's embeddings of all images (`train` also does this when needed).                                                                                                                |
+| `colesion train <config.yaml> [key=value ...]`                           | Trains one config: one run, one folder in `runs/`.                                                                                                                                                  |
+| `colesion sweep <sweep.yaml> [key=value ...]`                            | Trains every grid point of a sweep, one after the other (= many `train` calls).                                                                                                                     |
+| `colesion sweep <sweep.yaml> --status`                                   | Lists the grid points and whether each is done. Trains nothing.                                                                                                                                     |
+| `colesion evaluate <run folder> [--split val]`                           | Metrics, per-class table and confusion matrix of a finished run (no retraining).                                                                                                                    |
+| `colesion export <run folder>`                                           | Logits, embeddings and Grad-CAM heatmaps for Jonas's dashboard.                                                                                                                                     |
+| `colesion report [folders] [--out DIR] [--sort COL] [--mean-over-seeds]` | Compares runs: one table row per run (`--sort best_val_bal_acc` puts the best first; `--mean-over-seeds` gives one row per setting, averaged over its seeds); `--out` also writes a csv and a plot. |
+| `colesion data-check`                                                    | Leak and split checks on `data/build/` (after every dataset build).                                                                                                                                 |
+| `uv run pytest`                                                          | Tests, about 4 s.                                                                                                                                                                                   |
 
 ### Typical workflow
 
@@ -92,6 +92,7 @@ cache + head ── export ───────────────► <run
 ```
 
 - `model.freeze: all` trains only the head, on the cached embeddings. `model.freeze: none` fine-tunes backbone and head together on images (`configs/classifier/finetune_dinov2.yaml`).
+- `train.schedule`: `constant` learning rate (default) or `cosine` (warm-up over the first epoch, then down to 0). The fine-tune uses `cosine`, so its last epochs settle instead of jumping around.
 - `model.weights` says which backbone: `pretrained` (published weights), `random` (smoke runs) or a run folder that fine-tuned it. Example: freeze a fine-tuned backbone and train new heads on it with `model.weights=runs/clf-finetune-dinov2/<folder> model.freeze=all`.
 - `evaluate` and `export` always use the run's best epoch (`checkpoints/best.pt`). Choose models on `val`; use `--split holdout` only for the final candidates.
 - `export` writes, for all 11,427 images, the 7 uncalibrated logits (`logit_akiec` ... `logit_vasc`) and the L2-normalised embedding, plus a 600×450 Grad-CAM heatmap (top-1 class, turbo colours) for the `pool` and `holdout` images. Join it with `items.parquet` on `image_id`. The heatmaps belong to that run's head.
@@ -104,7 +105,7 @@ Every run gets a folder named by its start time and seed: `runs/<run.name>/2026-
 
 | file                                | what it is                                                                                                 |
 | :---------------------------------- | :--------------------------------------------------------------------------------------------------------- |
-| `curves.png`                        | loss, acc and bal_acc per epoch, each with a train and a val curve. Redrawn after every epoch.             |
+| `curves.png`                        | loss, acc and bal_acc per epoch, each with a train and a val curve, plus the lr. Redrawn after every epoch. |
 | `summary.json`                      | Final numbers (what `colesion report` shows).                                                              |
 | `metrics.jsonl`                     | Every logged value, one per line.                                                                          |
 | `log.txt`                           | Everything printed, plus the traceback if the run failed.                                                  |
@@ -112,7 +113,7 @@ Every run gets a folder named by its start time and seed: `runs/<run.name>/2026-
 | `meta.json`                         | Status, start/end/resume times, config hash, git commit, dataset hash, package versions, device.           |
 | `git.diff`                          | Uncommitted code changes at the start (only if there were any). Commit + diff = the exact code of the run. |
 | `checkpoints/last.pt`, `best.pt`    | End of the last finished epoch (resume point) / epoch with the best val balanced accuracy.                 |
-| `artifacts/predictions_val.parquet` | Per-image probabilities on `val`, for any later metric.                                                    |
+| `eval/<split>/`, `export/`          | Written later by `colesion evaluate` / `colesion export`.                                                  |
 
 `colesion report` puts several runs side by side. Its table only shows the config values that differ between the runs (for a sweep: the swept ones). With `--out DIR`, it also writes `summary.csv` and one `curves.png`: colour = run, dashed = train, solid = val.
 

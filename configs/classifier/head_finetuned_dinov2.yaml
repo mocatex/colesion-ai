@@ -1,0 +1,8 @@
+# The chosen head on a fine-tuned backbone: linear, lr 3e-4, inverse_freq (head sweep on the
+# fine-tuned embeddings, 2026-11-13: all inverse_freq heads were within noise; this one learned
+# the slowest and stayed the most stable). Trains on cached embeddings, ~15 s.
+# Always pass the backbone (without it, this trains on the pretrained one):
+#   colesion train configs/classifier/head_finetuned_dinov2.yaml model.weights=runs/clf-finetune-dinov2/<folder>
+inherit: [ frozen_dinov2.yaml ]
+run: { name: clf-ft-dinov2-linear }
+train: { epochs: 30, lr: 3e-4 }

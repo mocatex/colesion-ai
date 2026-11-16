@@ -65,7 +65,7 @@ def cmd_export(args) -> int:
 def cmd_report(args) -> int:
     from colesion_ai.report import report
 
-    return 0 if report(args.paths, args.out, args.sort).height else 1
+    return 0 if report(args.paths, args.out, args.sort, args.mean_over_seeds).height else 1
 
 
 def cmd_data_check(args) -> int:
@@ -109,6 +109,7 @@ def main() -> None:
     report.add_argument("paths", nargs="*", type=Path, default=[Path("runs")])
     report.add_argument("--out", type=Path, help="also write summary.csv and curves.png here")
     report.add_argument("--sort", help="column to sort by, best first, e.g. best_val_bal_acc")
+    report.add_argument("--mean-over-seeds", action="store_true", help="one row per setting")
     report.set_defaults(func=cmd_report)
 
     check = commands.add_parser("data-check", help="leak and split checks on data/build")

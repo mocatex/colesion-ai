@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 
 import polars as pl
+import polars.selectors as cs
 from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 from matplotlib.ticker import MaxNLocator
@@ -20,13 +21,16 @@ SPLIT_COLORS = {"train": "#2a78d6", "val": "#eb6834"}
 SPLIT_STYLES = {"train": "--", "val": "-"}
 
 
-def report(paths, out: Path | None = None, sort: str | None = None) -> pl.DataFrame:
+def report(paths, out=None, sort: str | None = None, mean_over_seeds: bool = False) -> pl.DataFrame:
     """Print one row per run below `paths`, best first if `sort` names a column (e.g.
-    best_val_bal_acc). With `out`, also write summary.csv and curves.png."""
+    best_val_bal_acc). With `mean_over_seeds`, one row per setting instead. With `out`, also
+    write summary.csv and curves.png."""
     table = collect(paths)
     if table.is_empty():
         log.warning("no runs found below %s", ", ".join(map(str, paths)))
         return table
+    if mean_over_seeds:
+        table = average_seeds(table, sort)
     if sort:
         table = table.sort(sort, descending=True, nulls_last=True)
     with pl.Config(
@@ -64,6 +68,15 @@ def collect(paths) -> pl.DataFrame:
     return table.drop(key for key in config_keys if table[key].n_unique() == 1)
 
 
+def average_seeds(table: pl.DataFrame, sort: str | None) -> pl.DataFrame:
+    """One row per setting (all config values except run.seed): `seeds` = number of runs, the
+    mean of every number, and the spread (std) of the `sort` column over the seeds."""
+    settings = [c for c in table.columns if "." in c and c != "run.seed"]  # config keys have a dot
+    spread = [pl.col(sort).std().alias(f"{sort}_std")] if sort else []
+    numbers = cs.numeric() & ~cs.contains(".")
+    return table.group_by(settings).agg(pl.len().alias("seeds"), numbers.mean(), *spread)
+
+
 def plot_curves(run_dirs: list[Path], path: Path) -> None:
     """One panel per metric (loss, acc, bal_acc, ...), each with the train and the val curve."""
     if len(run_dirs) > len(COLORS):
@@ -87,7 +100,7 @@ def plot_curves(run_dirs: list[Path], path: Path) -> None:
     for ax, metric in zip(fig.subplots(1, len(metrics), squeeze=False)[0], metrics):
         for (run, split), style in styles.items():
             curve = rows.filter(run=run, name=metric, split=split).sort("epoch")
-            ax.plot(curve["epoch"], curve["value"], marker="o", ms=4, **style)
+            ax.plot(curve["epoch"], curve["value"], marker="o", ms=2, **style)
         ax.set_title(metric, loc="left", fontsize=10)
         ax.set_xlabel("epoch", fontsize=8)
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
