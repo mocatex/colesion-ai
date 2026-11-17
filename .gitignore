@@ -20,3 +20,7 @@ runs/
 cache/
 mlruns/
 configs/env/local.yaml
+
+# UI local cache and environment
+ui/state/
+ui/.env

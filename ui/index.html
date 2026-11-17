@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>COLESION-AI</title>
+  <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body class="hud-body">
+
+  <!-- TOP HUD BAR (ROCK-SOLID CENTER ANCHOR FOR CASE NAV) -->
+  <header class="hud-top-bar">
+    <div class="hud-brand">
+      <span class="hud-title">COLESION-AI</span>
+    </div>
+
+    <!-- CASE NAVIGATION [A / D] (ABSOLUTELY CENTERED - NEVER MOVES) -->
+    <div class="hud-case-nav">
+      <button id="prevCaseBtn" class="hud-key-btn" title="Previous Case (Key A)">
+        <span class="hud-kbd">A</span> &#9664;
+      </button>
+      <div class="hud-case-display">
+        <span id="caseCounter" class="hud-case-num">LOADING CASES...</span>
+        <span id="specimenId" class="hud-case-id">--</span>
+      </div>
+      <button id="nextCaseBtn" class="hud-key-btn" title="Next Case (Key D)">
+        &#9654; <span class="hud-kbd">D</span>
+      </button>
+    </div>
+
+    <!-- LOCK / AUDIT BADGE -->
+    <div class="hud-top-actions">
+      <!-- EXPLORER CONTROLS -->
+      <div class="hud-explorer-group">
+        <select id="explorerFilterSelect" class="hud-select-filter" title="Filter Cases">
+          <option value="all">All (1412)</option>
+          <option value="holdout">Holdout (278)</option>
+          <option value="pool">Pool (1134)</option>
+          <option value="disagreement">Disagreements (AI Errors)</option>
+          <option value="rivalry">Close Rivalry (Δ &lt; 20%)</option>
+          <option value="slice">Subgroup Alerts</option>
+          <option value="ood">OOD Candidates</option>
+          <option value="mel">Melanoma Cases</option>
+        </select>
+        <input type="text" id="caseSearchInput" placeholder="Jump: ISIC_..." class="hud-search-input" title="Type ID and press Enter" />
+      </div>
+
+      <div id="caseLockStatus" class="hud-lock-badge open">
+        <span class="status-dot"></span> <span id="lockStatusText">IN PROGRESS</span>
+      </div>
+      <button id="resetBtn" class="hud-btn-ghost" title="Reset All Cases">
+        Reset
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN HUD GRID: 3 COLUMNS -->
+  <main class="hud-grid" id="hudGrid">
+
+    <!-- LEFT COLUMN: DIAGNOSIS (STACKED TO TOP, FIXED POSITION) -->
+    <section class="hud-panel hud-left-panel">
+      <!-- NORMAL VIEW: DIAGNOSIS BUTTONS & KEYMAP -->
+      <div id="leftPanelNormal" class="panel-view-content">
+        <div class="hud-panel-header">
+        <div class="header-left">
+          <span class="panel-tag">DIAGNOSIS</span>
+        </div>
+        <!-- AI FORECAST TOGGLE BUTTON [S] -->
+        <button id="btnAiToggle" class="hud-ai-toggle-btn" title="Toggle AI Forecast (Key S)">
+          <span class="hud-kbd">S</span> <span id="aiToggleLabel">AI Forecast</span>
+        </button>
+      </div>
+
+      <!-- 7+1 BUTTONS LIST (BUTTON ITSELF FILLS AS BAR FROM RIGHT TO LEFT) -->
+      <div class="diag-buttons-container" id="diagButtonsGroup">
+        <!-- 1: Melanoma -->
+        <button class="diag-btn" data-key="1" data-class="mel">
+          <div class="diag-bar-fill" id="fill-mel"></div>
+          <div class="diag-btn-content">
+            <div class="diag-left-info">
+              <span class="diag-num"><span class="hud-kbd">1</span></span>
+              <span class="diag-label">Melanoma</span>
+            </div>
+            <span class="diag-pct" id="pct-mel"></span>
+          </div>
+        </button>
+
+        <!-- 2: Melanocytic Nevus -->
+        <button class="diag-btn" data-key="2" data-class="nv">
+          <div class="diag-bar-fill" id="fill-nv"></div>
+          <div class="diag-btn-content">
+            <div class="diag-left-info">
+              <span class="diag-num"><span class="hud-kbd">2</span></span>
+              <span class="diag-label">Melanocytic Nevus</span>
+            </div>
+            <span class="diag-pct" id="pct-nv"></span>
+          </div>
+        </button>
+
+        <!-- 3: Basal Cell Carcinoma -->
+        <button class="diag-btn" data-key="3" data-class="bcc">
+          <div class="diag-bar-fill" id="fill-bcc"></div>
+          <div class="diag-btn-content">
+            <div class="diag-left-info">
+              <span class="diag-num"><span class="hud-kbd">3</span></span>
+              <span class="diag-label">Basal Cell Carcinoma</span>
+            </div>
+            <span class="diag-pct" id="pct-bcc"></span>
+          </div>
+        </button>
+
+        <!-- 4: Actinic Keratosis -->
+        <button class="diag-btn" data-key="4" data-class="akiec">
+          <div class="diag-bar-fill" id="fill-akiec"></div>
+          <div class="diag-btn-content">
+            <div class="diag-left-info">
+              <span class="diag-num"><span class="hud-kbd">4</span></span>
+              <span class="diag-label">Actinic Keratosis</span>
+            </div>
+            <span class="diag-pct" id="pct-akiec"></span>
+          </div>
+        </button>
+
+        <!-- 5: Benign Keratosis -->
+        <button class="diag-btn" data-key="5" data-class="bkl">
+          <div class="diag-bar-fill" id="fill-bkl"></div>
+          <div class="diag-btn-content">
+            <div class="diag-left-info">
+              <span class="diag-num"><span class="hud-kbd">5</span></span>
+              <span class="diag-label">Benign Keratosis</span>
+            </div>
+            <span class="diag-pct" id="pct-bkl"></span>
+          </div>
+        </button>
+
+        <!-- 6: Dermatofibroma -->
+        <button class="diag-btn" data-key="6" data-class="df">
+          <div class="diag-bar-fill" id="fill-df"></div>
+          <div class="diag-btn-content">
+            <div class="diag-left-info">
+              <span class="diag-num"><span class="hud-kbd">6</span></span>
+              <span class="diag-label">Dermatofibroma</span>
+            </div>
+            <span class="diag-pct" id="pct-df"></span>
+          </div>
+        </button>
+
+        <!-- 7: Vascular Lesion -->
+        <button class="diag-btn" data-key="7" data-class="vasc">
+          <div class="diag-bar-fill" id="fill-vasc"></div>
+          <div class="diag-btn-content">
+            <div class="diag-left-info">
+              <span class="diag-num"><span class="hud-kbd">7</span></span>
+              <span class="diag-label">Vascular Lesion</span>
+            </div>
+            <span class="diag-pct" id="pct-vasc"></span>
+          </div>
+        </button>
+
+        <!-- 8: Inconclusive / Non-diagnostic -->
+        <button class="diag-btn neutral-btn" data-key="8" data-class="unclear">
+          <div class="diag-btn-content">
+            <div class="diag-left-info">
+              <span class="diag-num"><span class="hud-kbd">8</span></span>
+              <span class="diag-label">Inconclusive / Non-diagnostic</span>
+            </div>
+          </div>
+        </button>
+      </div>
+
+      <!-- AI GUIDANCE CARD (ONLY SHOWN WHEN CANDIDATES ARE CLOSE / RIVALRY) -->
+      <div id="aiStatusCard" class="hud-ai-status-card hidden">
+        <div class="ai-rival-callout">
+          <span class="ai-status-alert-label">Close rivalry</span>
+          <button id="btnCompareRival" class="hud-rival-chip" title="Compare Reference Twins (Key W)">
+            compare to rival &rarr; <span class="hud-kbd">W</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- KEYBOARD SHORTCUTS TABLE (BOTTOM LEFT HUD REFERENCE) -->
+      <div class="hud-card shortcut-table-card">
+        <div class="hud-card-header">
+          <span class="card-title">KEYBOARD SHORTCUTS</span>
+          <span class="card-badge">HOTKEYS</span>
+        </div>
+        <table class="shortcut-keymap-table">
+          <tbody>
+            <tr>
+              <th class="keymap-th"><span class="hud-kbd">1</span>–<span class="hud-kbd">8</span></th>
+              <td class="keymap-td">Select Diagnosis</td>
+            </tr>
+            <tr>
+              <th class="keymap-th"><span class="hud-kbd">W</span> <span class="keymap-sub">(Toggle)</span></th>
+              <td class="keymap-td">Reference Twins</td>
+            </tr>
+            <tr>
+              <th class="keymap-th"><span class="hud-kbd">Q</span> / <span class="hud-kbd">E</span></th>
+              <td class="keymap-td">Heatmap (&plusmn;50%)</td>
+            </tr>
+            <tr>
+              <th class="keymap-th"><span class="hud-kbd">S</span></th>
+              <td class="keymap-td">Toggle AI Forecast</td>
+            </tr>
+            <tr>
+              <th class="keymap-th"><span class="hud-kbd">A</span> / <span class="hud-kbd">D</span></th>
+              <td class="keymap-td">Prev / Next Case</td>
+            </tr>
+            <tr>
+              <th class="keymap-th"><span class="hud-kbd enter-kbd">ENTER</span></th>
+              <td class="keymap-td keymap-action">Sign-Off Case</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      </div>
+
+      <!-- TWINS VIEW: LEFT TWINS (3 CARDS) -->
+      <div id="leftPanelTwins" class="hud-twins-column-panel hidden">
+        <div class="twins-panel-header">
+          <!-- Line 1: Meta row (Match Type + Case Count + Close) -->
+          <div class="twins-header-meta-row">
+            <div class="twins-meta-left">
+              <span class="twins-type-pill top-match" id="leftTwinsTypePill">Top Match</span>
+              <span class="twins-cases-count">3 Reference Cases</span>
+            </div>
+            <div class="twins-meta-right">
+              <span class="twins-selected-badge hidden" id="leftTwinsSelectedBadge">SELECTED</span>
+              <button class="twins-close-btn" id="btnCloseTwinsLeft" title="Close Twins (Key W)">&times;</button>
+            </div>
+          </div>
+          <!-- Line 2: Diagnostic Selector (Keycap + Full Diagnosis Name) -->
+          <div class="twins-header-dx-row" id="leftTwinsDxRow">
+            <span class="diag-num"><span class="hud-kbd" id="leftTwinsKey">1</span></span>
+            <span class="twins-dx-label" id="leftTwinsLabel">Melanoma</span>
+          </div>
+        </div>
+        <div class="twins-cards-scroll" id="leftTwinsCardsRow">
+          <!-- 3 cards injected via JS -->
+        </div>
+      </div>
+</section>
+
+    <!-- CENTER COLUMN: MAXIMAL IMAGE VIEWPORT (UNOBSTRUCTED FOR SIDE-BY-SIDE INSPECTION) -->
+    <section class="hud-panel hud-center-panel">
+      
+      <div class="viewport-hud-wrapper">
+        <!-- IMAGE & HEATMAP CANVAS -->
+        <div class="hud-viewport-stage" id="viewportStage">
+          <img id="baseImage" class="stage-img base-layer" src="" alt="Clinical Specimen">
+          <img id="heatmapImage" class="stage-img heatmap-layer" src="" alt="Grad-CAM Saliency Heatmap">
+          
+          <!-- SCALE OVERLAY -->
+          <div class="stage-scale-bar">
+            <span class="scale-bar-line"></span>
+            <span class="scale-bar-text">1.0 mm</span>
+          </div>
+        </div>
+
+        <!-- HEATMAP SLIDER HUD (Q / E IN 50% STEPS) -->
+        <div class="hud-slider-dock">
+          <button id="btnHeatmapDown" class="hud-step-btn" title="Decrease Heatmap (Key Q: -50%)">
+            <span class="hud-kbd">Q</span> -50%
+          </button>
+          
+          <div class="hud-slider-track-wrap">
+            <span class="slider-hint">Grad-CAM++ [Q/E]:</span>
+            <input type="range" id="heatmapOpacity" min="0" max="100" value="0" step="1" class="hud-range-slider" title="Fine adjust with mouse">
+            <span id="opacityVal" class="slider-pct-badge">0%</span>
+          </div>
+
+          <button id="btnHeatmapUp" class="hud-step-btn" title="Increase Heatmap (Key E: +50%)">
+            +50% <span class="hud-kbd">E</span>
+          </button>
+
+          <!-- REFERENCE TWINS TOGGLE BUTTON [W] -->
+          <button id="btnHoldWTwin" class="hud-twin-btn" title="Toggle Reference Twins (Key W)">
+            <span class="hud-kbd">W</span> Reference Twins
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT COLUMN: PATIENT DATA, TRIPLE-PROJECTION AVATAR & SIGNOFF HUD (OR TWINS ON HOLD-W) -->
+    <section class="hud-panel hud-right-panel" id="hudRightPanel">
+
+      <!-- NORMAL VIEW: SPECIMEN METADATA & SIGNOFF -->
+      <div class="right-panel-content" id="rightPanelNormal">
+
+        <!-- CLINICAL SPECIMEN METADATA WITH TRIPLE-PROJECTION ANATOMICAL AVATAR -->
+        <div class="hud-card specimen-card">
+          <div class="hud-card-header">
+            <span class="card-title">CLINICAL SPECIMEN</span>
+            <span id="metaStain" class="card-badge">Dermoscopy</span>
+          </div>
+
+          <!-- PATIENT METADATA TABLE -->
+          <table class="patient-meta-table">
+            <tbody>
+              <tr>
+                <th class="meta-th">Case ID</th>
+                <td id="pSpecimenId" class="meta-td highlight">--</td>
+              </tr>
+              <tr>
+                <th class="meta-th">Sex</th>
+                <td id="metaSex" class="meta-td">--</td>
+              </tr>
+              <tr>
+                <th class="meta-th">Age</th>
+                <td id="metaAge" class="meta-td">--</td>
+              </tr>
+              <tr>
+                <th class="meta-th">Location</th>
+                <td id="metaSite" class="meta-td highlight">--</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- TRIPLE-PROJECTION ANATOMICAL AVATAR (ANT, POST, LAT) -->
+          <div class="anatomical-locator-card" title="Anatomical Lesion Localization (Anterior, Posterior & Lateral Views)">
+            <div class="avatar-projection-group">
+              <!-- Anterior View (Front) -->
+              <div class="avatar-figure-wrap">
+                <div class="avatar-canvas">
+                  <img src="assets/images/avatar_front.png" alt="Anterior View" class="avatar-img">
+                  <div id="pinFront" class="projection-pin">
+                    <div class="pin-pulse"></div>
+                    <div class="pin-core"></div>
+                  </div>
+                </div>
+                <span class="projection-label">ANT</span>
+              </div>
+
+              <div class="projection-divider"></div>
+
+              <!-- Posterior View (Back) -->
+              <div class="avatar-figure-wrap">
+                <div class="avatar-canvas">
+                  <img src="assets/images/avatar_back.png" alt="Posterior View" class="avatar-img">
+                  <div id="pinBack" class="projection-pin">
+                    <div class="pin-pulse"></div>
+                    <div class="pin-core"></div>
+                  </div>
+                </div>
+                <span class="projection-label">POST</span>
+              </div>
+
+              <div class="projection-divider"></div>
+
+              <!-- Lateral View (Side) -->
+              <div class="avatar-figure-wrap">
+                <div class="avatar-canvas">
+                  <img src="assets/images/avatar_side_clean.png" alt="Lateral View" class="avatar-img">
+                  <div id="pinSide" class="projection-pin">
+                    <div class="pin-pulse"></div>
+                    <div class="pin-core"></div>
+                  </div>
+                </div>
+                <span class="projection-label">LAT</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- CLINICAL SUBGROUP / SLICE ALERT (SHOWN ONLY WHEN AI FORECAST IS VISIBLE) -->
+          <div id="sliceWarningBox" class="hud-slice-alert hidden">
+            <div class="slice-alert-header">
+              <span class="slice-tag alert-tag">ALERT</span>
+              <strong>SUBGROUP SENSITIVITY</strong>
+            </div>
+            <div class="slice-grid-table">
+              <div class="slice-grid-row">
+                <span class="slice-k">Site:</span>
+                <span id="sliceSiteVal" class="slice-v">Lower Extremity</span>
+              </div>
+              <div class="slice-grid-row">
+                <span class="slice-k">AI Sensitivity:</span>
+                <span class="slice-v drop">63% <span class="slice-badge">-19%</span></span>
+              </div>
+              <div class="slice-grid-row">
+                <span class="slice-k">Baseline:</span>
+                <span class="slice-v">82%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- OOD ALERT: CLEAN REALISTIC OUT-OF-DISTRIBUTION WARNING -->
+          <div id="oodAlertBox" class="hud-slice-alert ood-alert hidden">
+            <div class="slice-alert-header ood-header">
+              <span class="slice-tag ood-tag">OOD</span>
+              <strong>OUT-OF-DISTRIBUTION</strong>
+            </div>
+            <div class="slice-grid-table">
+              <div class="slice-grid-row">
+                <span class="slice-k">Status:</span>
+                <span class="slice-v drop">No Prediction Available</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SIGNOFF HUD: CLEAN & FOCUSED -->
+        <div class="hud-card signoff-card">
+          <div class="hud-card-header">
+            <span class="card-title">CASE SIGN-OFF</span>
+            <span id="dwellTimerBadge" class="timer-badge">00.0s</span>
+          </div>
+
+          <!-- SELECTED DIAGNOSIS STATUS -->
+          <div class="signoff-selection-box">
+            <span class="selection-caption">Selected Working Diagnosis:</span>
+            <div id="selectedDiagBadge" class="selected-diag-badge empty">
+              No diagnosis selected yet (Press 1-8)
+            </div>
+          </div>
+
+          <!-- BIG SIGN-OFF BUTTON [ENTER] -->
+          <button id="btnSignOff" class="hud-btn-primary" title="Finalize and lock case (Key Enter)">
+            <span class="btn-main-text">Sign-off Case</span>
+            <span class="hud-kbd enter-kbd">ENTER</span>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- TWINS VIEW: RIGHT TWINS (3 CARDS) -->
+      <div id="rightPanelTwins" class="hud-twins-column-panel hidden">
+        <div class="twins-panel-header">
+          <!-- Line 1: Meta row (Match Type + Case Count + Close) -->
+          <div class="twins-header-meta-row">
+            <div class="twins-meta-left">
+              <span class="twins-type-pill rival-match" id="rightTwinsTypePill">Rival Match</span>
+              <span class="twins-cases-count">3 Reference Cases</span>
+            </div>
+            <div class="twins-meta-right">
+              <span class="twins-selected-badge hidden" id="rightTwinsSelectedBadge">SELECTED</span>
+              <button class="twins-close-btn" id="btnCloseTwinsRight" title="Close Twins (Key W)">&times;</button>
+            </div>
+          </div>
+          <!-- Line 2: Diagnostic Selector (Keycap + Full Diagnosis Name) -->
+          <div class="twins-header-dx-row" id="rightTwinsDxRow">
+            <span class="diag-num"><span class="hud-kbd" id="rightTwinsKey">2</span></span>
+            <span class="twins-dx-label" id="rightTwinsLabel">Melanocytic Nevus</span>
+          </div>
+        </div>
+        <div class="twins-cards-scroll" id="rightTwinsCardsRow">
+          <!-- 3 cards injected via JS -->
+        </div>
+        <div class="twins-panel-footer">
+          <button class="twins-return-main-btn" id="btnTwinsReturnRight" title="Return to Main Menu (Press Enter or Click)">
+            <span class="hud-kbd enter-kbd">ENTER</span> Return to Main Menu
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+    <script src="js/app.js"></script>
+</body>
+</html>

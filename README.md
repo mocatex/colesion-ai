@@ -56,6 +56,7 @@ Everything goes through one command, `uv run colesion ...`. How the code works i
 | `colesion sweep <sweep.yaml> --status`                                   | Lists the grid points and whether each is done. Trains nothing.                                                                                                                                     |
 | `colesion evaluate <run folder> [--split val]`                           | Metrics, per-class table and confusion matrix of a finished run (no retraining).                                                                                                                    |
 | `colesion export <run folder>`                                           | Logits, embeddings and Grad-CAM heatmaps for Jonas's dashboard.                                                                                                                                     |
+| `cd ui && ./run.sh`                                                      | Launches Jonas's Tactical HUD dashboard & data explorer on http://localhost:8000.                                                                                      |
 | `colesion report [folders] [--out DIR] [--sort COL] [--mean-over-seeds]` | Compares runs: one table row per run (`--sort best_val_bal_acc` puts the best first; `--mean-over-seeds` gives one row per setting, averaged over its seeds); `--out` also writes a csv and a plot. |
 | `colesion data-check`                                                    | Leak and split checks on `data/build/` (after every dataset build).                                                                                                                                 |
 | `uv run pytest`                                                          | Tests, about 4 s.                                                                                                                                                                                   |
@@ -76,6 +77,9 @@ uv run colesion evaluate runs/clf-frozen-dinov2/<folder>                    # on
 uv run colesion sweep configs/sweeps/smoke.yaml --status
 uv run colesion sweep configs/sweeps/smoke.yaml
 uv run colesion report runs/smoke --sort best_val_bal_acc --out runs/_reports/smoke
+
+# 4. Explore cases & model decisions in the Tactical HUD UI
+cd ui && ./run.sh    # or from root: uv run ui/server.py (auto-calibrates and opens browser)
 ```
 
 ### The classifier pipeline
@@ -89,6 +93,9 @@ images ── embed ────────────────────
 cache ─── train, model.freeze: all ───► trained head (+ curves)          seconds
 cache + head ── evaluate ─────────────► <run>/eval/<split>/: metrics, per-class table, confusion matrix
 cache + head ── export ───────────────► <run>/export/: Jonas's parquet; images ─► Grad-CAM heatmaps
+                                          │
+                                          └──► ui/ (Tactical HUD Explorer): Temperature scaling (ECE 1.5%),
+                                               OOD gate, subgroup alerts & 6 biopsy reference twins
 ```
 
 - `model.freeze: all` trains only the head, on the cached embeddings. `model.freeze: none` fine-tunes backbone and head together on images (`configs/classifier/finetune_dinov2.yaml`).
