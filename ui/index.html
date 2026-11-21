@@ -10,8 +10,10 @@
 
   <!-- TOP HUD BAR (ROCK-SOLID CENTER ANCHOR FOR CASE NAV) -->
   <header class="hud-top-bar">
-    <div class="hud-brand">
-      <span class="hud-title">COLESION-AI</span>
+    <div class="hud-brand" id="hudBrandContainer" title="Model Accuracy dynamically computed from active ML run">
+      <div class="hud-accuracy-badge">
+        <span class="hud-accuracy-text" id="topMlAccuracyDisplay">ML Accuracy --%</span>
+      </div>
     </div>
 
     <!-- CASE NAVIGATION [A / D] (ABSOLUTELY CENTERED - NEVER MOVES) -->

@@ -24,3 +24,11 @@ configs/env/local.yaml
 # UI local cache and environment
 ui/state/
 ui/.env
+ui-eval/state/
+ui-eval/.env
+ui-eval/results/*.json
+
+# Logs & Agent Skills
+*.log
+skills/
+

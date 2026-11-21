@@ -153,6 +153,8 @@ const btnSignOff = document.getElementById("btnSignOff");
 
 // Application Initialization
 async function initDashboard() {
+  loadCalibratedMetrics();
+
   try {
     let response = await fetch("/api/cases");
     if (!response.ok) response = await fetch("data/cases.json");
@@ -169,6 +171,44 @@ async function initDashboard() {
   setupGlobalEventListeners();
   setupExplorerControls();
   loadCase(0);
+}
+
+async function loadCalibratedMetrics() {
+  const displayEl = document.getElementById("topMlAccuracyDisplay");
+  const brandEl = document.getElementById("hudBrandContainer");
+
+  try {
+    const res = await fetch("/api/metrics");
+    if (res.ok) {
+      const m = await res.json();
+      const valAcc = m.val_accuracy ?? m.val_acc;
+      if (typeof valAcc === "number") {
+        const accPct = (valAcc * 100).toFixed(1);
+        if (displayEl) displayEl.textContent = `ML Accuracy ${accPct}%`;
+        if (brandEl) {
+          const eceStr = m.ece_calibrated ? ` | Calibrated ECE: ${(m.ece_calibrated * 100).toFixed(1)}%` : "";
+          brandEl.title = `Model Accuracy: ${accPct}%${eceStr} (Computed from active ML run). Note: AI can be wrong!`;
+        }
+        return;
+      }
+    }
+  } catch (err) {
+    console.warn("API metrics fetch failed, falling back to dataset calculation:", err);
+  }
+
+  // Dynamic calculation fallback directly from dataset cases
+  if (casesData && casesData.length > 0) {
+    const correctCount = casesData.filter((c) => {
+      const gt = c.ground_truth?.short_name || c.dx;
+      const pred = c.ai_assessment?.predicted_class?.short_name || c.pred_class;
+      return gt && pred && gt === pred;
+    }).length;
+    const accPct = ((correctCount / casesData.length) * 100).toFixed(1);
+    if (displayEl) displayEl.textContent = `ML Accuracy ${accPct}%`;
+    if (brandEl) {
+      brandEl.title = `Model Accuracy: ${accPct}% (Computed across dataset cases). Note: AI can be wrong!`;
+    }
+  }
 }
 
 function updateExplorerFilterCounts() {

@@ -124,11 +124,37 @@ class ColesionExplorerHandler(SimpleHTTPRequestHandler):
                 pass
 
     def handle_api_metrics(self, is_head=False):
+        metrics = {}
+        # 1. Read summary metrics directly from active ML run directory
+        summary_file = self.server.ml_run_dir / "summary.json"
+        if summary_file.exists():
+            try:
+                summary = json.loads(summary_file.read_text())
+                if "val_acc" in summary:
+                    metrics["val_accuracy"] = float(summary["val_acc"])
+                if "val_bal_acc" in summary:
+                    metrics["val_bal_acc"] = float(summary["val_bal_acc"])
+                if "val_loss" in summary:
+                    metrics["val_loss"] = float(summary["val_loss"])
+            except Exception as e:  # noqa: BLE001
+                log.warning(f"Error reading {summary_file}: {e}")
+
+        # 2. Merge with calibration metrics cache if present
         metrics_file = self.server.state_dir / "metrics.json"
         if metrics_file.exists():
-            data = metrics_file.read_bytes()
-        else:
-            data = b"{}"
+            try:
+                cal_data = json.loads(metrics_file.read_text())
+                for k, v in cal_data.items():
+                    if k not in metrics:
+                        metrics[k] = v
+            except Exception as e:  # noqa: BLE001
+                log.warning(f"Error reading {metrics_file}: {e}")
+
+        # 3. Format accuracy string for HUD display
+        if "val_accuracy" in metrics:
+            metrics["accuracy_formatted"] = f"{metrics['val_accuracy'] * 100:.1f}%"
+
+        data = json.dumps(metrics).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))

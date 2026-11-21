@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>COLESION-AI // Formative Evaluation Workplace</title>
+  <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body class="hud-body">
+
+  <!-- TOP HUD BAR -->
+  <header class="hud-top-bar">
+    <div class="hud-brand" id="hudBrandContainer" title="Co-Learning Clinical Evaluation">
+      <div class="hud-accuracy-badge">
+        <span class="hud-accuracy-text" id="topMlAccuracyDisplay">ML Accuracy 77.8%</span>
+      </div>
+    </div>
+
+    <!-- CENTER PROGRESS INDICATOR (WHERE WE ARE IN STUDY) -->
+    <div class="hud-case-nav">
+      <div class="hud-case-display">
+        <span id="studyPhaseBadge" class="study-phase-badge tutorial">TUTORIAL &bull; Case 1 of 4</span>
+      </div>
+    </div>
+
+    <!-- 4-STAGE PIPELINE INDICATOR (EXACTLY ONCE IN TOP-RIGHT) -->
+    <div class="hud-top-actions">
+      <div class="stage-pipeline" title="Current Decision Stage">
+        <span class="stage-step-pill pill-0 active" id="pillStage0">0: Solo</span>
+        <span class="stage-step-pill pill-1" id="pillStage1">1: AI Reveal</span>
+        <span class="stage-step-pill pill-2" id="pillStage2">2: Deliberate</span>
+        <span class="stage-step-pill pill-3" id="pillStage3">3: Lock</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- PROMINENT STAGE GUIDANCE BANNER -->
+  <div class="stage-guidance-banner" id="stageGuidanceBanner">
+    <div class="stage-guidance-left">
+      <span class="stage-instruction-text" id="stageGuidanceText">
+        Inspect specimen &amp; metadata. Enter your unassisted initial diagnosis using keys [1]–[7].
+      </span>
+    </div>
+    <div class="stage-guidance-right">
+      <span class="stage-hotkey-hint" id="stageHotkeyHint">Keys: [1]–[7] Initial Diagnosis</span>
+    </div>
+  </div>
+
+  <!-- MAIN HUD GRID: 3 COLUMNS -->
+  <main class="hud-grid" id="hudGrid">
+
+    <!-- LEFT COLUMN: DIAGNOSTIC SELECTION & STAGES -->
+    <section class="hud-panel hud-left-panel">
+      <!-- NORMAL VIEW -->
+      <div id="leftPanelNormal" class="panel-view-content">
+        <div class="hud-panel-header">
+          <div class="header-left">
+            <span class="panel-tag">DIAGNOSIS</span>
+          </div>
+          <div id="aiConfidenceBadge" class="hud-ai-toggle-btn" style="pointer-events: none; opacity: 0;">
+            <span id="aiForecastBadgeText">AI: --</span>
+          </div>
+        </div>
+
+
+
+        <!-- 7+1 DIAGNOSTIC BUTTONS -->
+        <div class="diag-buttons-container" id="diagButtonsGroup">
+          <!-- 1: Melanoma -->
+          <button class="diag-btn" data-key="1" data-class="mel">
+            <div class="diag-bar-fill" id="fill-mel"></div>
+            <div class="diag-btn-content">
+              <div class="diag-left-info">
+                <span class="diag-num"><span class="hud-kbd">1</span></span>
+                <span class="diag-label">Melanoma</span>
+              </div>
+              <span class="diag-pct" id="pct-mel"></span>
+            </div>
+          </button>
+
+          <!-- 2: Melanocytic Nevus -->
+          <button class="diag-btn" data-key="2" data-class="nv">
+            <div class="diag-bar-fill" id="fill-nv"></div>
+            <div class="diag-btn-content">
+              <div class="diag-left-info">
+                <span class="diag-num"><span class="hud-kbd">2</span></span>
+                <span class="diag-label">Melanocytic Nevus</span>
+              </div>
+              <span class="diag-pct" id="pct-nv"></span>
+            </div>
+          </button>
+
+          <!-- 3: Basal Cell Carcinoma -->
+          <button class="diag-btn" data-key="3" data-class="bcc">
+            <div class="diag-bar-fill" id="fill-bcc"></div>
+            <div class="diag-btn-content">
+              <div class="diag-left-info">
+                <span class="diag-num"><span class="hud-kbd">3</span></span>
+                <span class="diag-label">Basal Cell Carcinoma</span>
+              </div>
+              <span class="diag-pct" id="pct-bcc"></span>
+            </div>
+          </button>
+
+          <!-- 4: Actinic Keratosis -->
+          <button class="diag-btn" data-key="4" data-class="akiec">
+            <div class="diag-bar-fill" id="fill-akiec"></div>
+            <div class="diag-btn-content">
+              <div class="diag-left-info">
+                <span class="diag-num"><span class="hud-kbd">4</span></span>
+                <span class="diag-label">Actinic Keratosis</span>
+              </div>
+              <span class="diag-pct" id="pct-akiec"></span>
+            </div>
+          </button>
+
+          <!-- 5: Benign Keratosis -->
+          <button class="diag-btn" data-key="5" data-class="bkl">
+            <div class="diag-bar-fill" id="fill-bkl"></div>
+            <div class="diag-btn-content">
+              <div class="diag-left-info">
+                <span class="diag-num"><span class="hud-kbd">5</span></span>
+                <span class="diag-label">Benign Keratosis</span>
+              </div>
+              <span class="diag-pct" id="pct-bkl"></span>
+            </div>
+          </button>
+
+          <!-- 6: Dermatofibroma -->
+          <button class="diag-btn" data-key="6" data-class="df">
+            <div class="diag-bar-fill" id="fill-df"></div>
+            <div class="diag-btn-content">
+              <div class="diag-left-info">
+                <span class="diag-num"><span class="hud-kbd">6</span></span>
+                <span class="diag-label">Dermatofibroma</span>
+              </div>
+              <span class="diag-pct" id="pct-df"></span>
+            </div>
+          </button>
+
+          <!-- 7: Vascular Lesion -->
+          <button class="diag-btn" data-key="7" data-class="vasc">
+            <div class="diag-bar-fill" id="fill-vasc"></div>
+            <div class="diag-btn-content">
+              <div class="diag-left-info">
+                <span class="diag-num"><span class="hud-kbd">7</span></span>
+                <span class="diag-label">Vascular Lesion</span>
+              </div>
+              <span class="diag-pct" id="pct-vasc"></span>
+            </div>
+          </button>
+
+
+        </div>
+
+        <!-- DELIBERATION CARD (STAGE 2 & 3) -->
+        <div id="deliberationCard" class="deliberation-card hidden">
+          <div class="deliberation-header">
+            <span>Deliberation</span>
+            <span id="delibShiftBadge" class="hud-kbd">CONCORDANT</span>
+          </div>
+          <div class="deliberation-grid">
+            <div class="delib-col">
+              <span class="delib-label">Your Initial:</span>
+              <div class="delib-val" id="delibHumanInitial">--</div>
+            </div>
+            <div class="delib-col">
+              <span class="delib-label">AI Forecast:</span>
+              <div class="delib-val" id="delibAiForecast">--</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CLOSE RIVALRY ALERT CHIP -->
+        <div id="aiStatusCard" class="hud-ai-status-card hidden">
+          <div class="ai-rival-callout">
+            <span class="ai-status-alert-label">Close rivalry (&Delta; &lt; 20%)</span>
+            <button id="btnCompareRival" class="hud-rival-chip" title="Compare Precedent Twins (Key W)">
+              Inspect Twins &rarr; <span class="hud-kbd">W</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- COMPACT SHORTCUTS CARD -->
+        <div class="hud-card shortcut-table-card">
+          <div class="hud-card-header">
+            <span class="card-title">KEYBOARD SHORTCUTS</span>
+            <span class="card-badge">HOTKEYS</span>
+          </div>
+          <table class="shortcut-keymap-table">
+            <tbody>
+              <tr>
+                <th class="keymap-th"><span class="hud-kbd">1</span>–<span class="hud-kbd">7</span></th>
+                <td class="keymap-td">Diagnosis</td>
+              </tr>
+              <tr>
+                <th class="keymap-th"><span class="hud-kbd">W</span></th>
+                <td class="keymap-td">Twins (Hold/Toggle)</td>
+              </tr>
+              <tr>
+                <th class="keymap-th"><span class="hud-kbd">Q</span> / <span class="hud-kbd">E</span></th>
+                <td class="keymap-td">Heatmap (&plusmn;20%)</td>
+              </tr>
+              <tr>
+                <th class="keymap-th"><span class="hud-kbd enter-kbd">ENTER</span></th>
+                <td class="keymap-td keymap-action">Lock / Next</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- LEFT TWINS PANEL (CARDS POP UP ON HOLD W) -->
+      <div id="leftPanelTwins" class="hud-twins-column-panel hidden">
+        <div class="twins-panel-header">
+          <div class="twins-header-meta-row">
+            <div class="twins-meta-left">
+              <span class="twins-type-pill top-match" id="leftTwinsTypePill">Top AI Match</span>
+              <span class="twins-cases-count">3 Confirmed Twins</span>
+            </div>
+            <div class="twins-meta-right">
+              <span class="twins-selected-badge hidden" id="leftTwinsSelectedBadge">SELECTED</span>
+              <button class="twins-close-btn" id="btnCloseTwinsLeft" title="Close Twins (Key W)">&times;</button>
+            </div>
+          </div>
+          <div class="twins-header-dx-row" id="leftTwinsDxRow">
+            <span class="diag-num"><span class="hud-kbd" id="leftTwinsKey">1</span></span>
+            <span class="twins-dx-label" id="leftTwinsLabel">Melanoma</span>
+          </div>
+        </div>
+        <div class="twins-cards-scroll" id="leftTwinsCardsRow"></div>
+      </div>
+    </section>
+
+    <!-- CENTER COLUMN: IMAGE VIEWPORT & HEATMAP OVERLAY -->
+    <section class="hud-panel hud-center-panel">
+      <div class="viewport-hud-wrapper">
+        <div class="hud-viewport-stage" id="viewportStage">
+          <img id="baseImage" class="stage-img base-layer" src="" alt="Clinical Specimen">
+          <img id="heatmapImage" class="stage-img heatmap-layer" src="" alt="Grad-CAM Saliency Heatmap">
+          
+          <div class="stage-scale-bar">
+            <span class="scale-bar-line"></span>
+            <span class="scale-bar-text">1.0 mm</span>
+          </div>
+        </div>
+
+        <!-- HEATMAP SLIDER HUD (ACTIVE IN STAGES 1, 2, 3) -->
+        <div class="hud-slider-dock" id="heatmapSliderDock">
+          <button id="btnHeatmapDown" class="hud-step-btn" title="Decrease Heatmap (Key Q: -20%)">
+            <span class="hud-kbd">Q</span> -20%
+          </button>
+          
+          <div class="hud-slider-track-wrap">
+            <span class="slider-hint">Grad-CAM++ [Q/E]:</span>
+            <input type="range" id="heatmapOpacity" min="0" max="100" value="0" step="5" class="hud-range-slider" title="Adjust heatmap opacity">
+            <span id="opacityVal" class="slider-pct-badge">0%</span>
+          </div>
+
+          <button id="btnHeatmapUp" class="hud-step-btn" title="Increase Heatmap (Key E: +20%)">
+            +20% <span class="hud-kbd">E</span>
+          </button>
+
+          <button id="btnHoldWTwin" class="hud-twin-btn" title="Precedent Twins (Key W)">
+            <span class="hud-kbd">W</span> Precedent Twins
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT COLUMN: PATIENT DATA & SIGNOFF -->
+    <section class="hud-panel hud-right-panel" id="hudRightPanel">
+      <div class="right-panel-content" id="rightPanelNormal">
+
+        <!-- SPECIMEN CARD -->
+        <div class="hud-card specimen-card">
+          <div class="hud-card-header">
+            <span class="card-title">CLINICAL SPECIMEN</span>
+            <span id="metaStain" class="card-badge">Dermoscopy</span>
+          </div>
+
+          <table class="patient-meta-table">
+            <tbody>
+              <tr>
+                <th class="meta-th">Case ID</th>
+                <td id="pSpecimenId" class="meta-td highlight">ISIC_0034533</td>
+              </tr>
+              <tr>
+                <th class="meta-th">Sex</th>
+                <td id="metaSex" class="meta-td">--</td>
+              </tr>
+              <tr>
+                <th class="meta-th">Age</th>
+                <td id="metaAge" class="meta-td">--</td>
+              </tr>
+              <tr>
+                <th class="meta-th">Location</th>
+                <td id="metaSite" class="meta-td highlight">--</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- TRIPLE-PROJECTION AVATAR -->
+          <div class="anatomical-locator-card" title="Anatomical Lesion Localization">
+            <div class="avatar-projection-group">
+              <div class="avatar-figure-wrap">
+                <div class="avatar-canvas">
+                  <img src="assets/images/avatar_front.png" alt="Anterior View" class="avatar-img">
+                  <div id="pinFront" class="projection-pin">
+                    <div class="pin-pulse"></div>
+                    <div class="pin-core"></div>
+                  </div>
+                </div>
+                <span class="projection-label">ANT</span>
+              </div>
+              <div class="projection-divider"></div>
+              <div class="avatar-figure-wrap">
+                <div class="avatar-canvas">
+                  <img src="assets/images/avatar_back.png" alt="Posterior View" class="avatar-img">
+                  <div id="pinBack" class="projection-pin">
+                    <div class="pin-pulse"></div>
+                    <div class="pin-core"></div>
+                  </div>
+                </div>
+                <span class="projection-label">POST</span>
+              </div>
+              <div class="projection-divider"></div>
+              <div class="avatar-figure-wrap">
+                <div class="avatar-canvas">
+                  <img src="assets/images/avatar_side_clean.png" alt="Lateral View" class="avatar-img">
+                  <div id="pinSide" class="projection-pin">
+                    <div class="pin-pulse"></div>
+                    <div class="pin-core"></div>
+                  </div>
+                </div>
+                <span class="projection-label">LAT</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- SLICE ALERT (STAGE 1+) -->
+          <div id="sliceWarningBox" class="hud-slice-alert hidden">
+            <div class="slice-alert-header">
+              <span class="slice-tag alert-tag">WARNING</span>
+              <strong>SUBGROUP RISK</strong>
+            </div>
+            <div class="slice-grid-table">
+              <div class="slice-grid-row">
+                <span class="slice-k">Location:</span>
+                <span id="sliceSiteVal" class="slice-v">Lower Extremity</span>
+              </div>
+              <div class="slice-grid-row">
+                <span class="slice-k">Note:</span>
+                <span id="sliceNoteVal" class="slice-v drop">Reduced Historical Sensitivity (58%)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- OOD ALERT (STAGE 1+) -->
+          <div id="oodAlertBox" class="hud-slice-alert ood-alert hidden">
+            <div class="slice-alert-header ood-header">
+              <span class="slice-tag ood-tag">OOD</span>
+              <strong>OUT-OF-DISTRIBUTION</strong>
+            </div>
+            <div class="slice-grid-table">
+              <div class="slice-grid-row">
+                <span class="slice-k">Status:</span>
+                <span class="slice-v drop">Epistemic Uncertainty // No Forecast</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SIGNOFF HUD: STREAMLINED & NON-REDUNDANT -->
+        <div class="hud-card signoff-card">
+          <div class="hud-card-header">
+            <span class="card-title" id="signoffCardTitle">CASE DECISION</span>
+            <span id="dwellTimerBadge" class="timer-badge">00.0s</span>
+          </div>
+
+          <!-- STAGE 0, 1, 2 SELECTION & LOCK BUTTON -->
+          <div id="signoffNormalSection">
+            <div class="signoff-selection-box">
+              <span class="selection-caption">Working Diagnosis:</span>
+              <div id="selectedDiagBadge" class="selected-diag-badge empty">
+                Select diagnosis (Keys 1-7)
+              </div>
+            </div>
+
+            <button id="btnSignOff" class="hud-btn-primary" title="Finalize and lock case (Key Enter)">
+              <span class="btn-main-text" id="btnSignOffText">Lock Final Diagnosis</span>
+              <span class="hud-kbd enter-kbd">ENTER</span>
+            </button>
+          </div>
+
+          <!-- STAGE 3 LOCKED CONFIRMATION & ADVANCE (NO ATTRIBUTION QUESTIONS) -->
+          <div id="stage3AttrSection" class="stage3-attr-section hidden">
+            <div class="stage3-locked-status">
+              <span class="locked-dot"></span> Decision Locked: <strong id="lockedDiagName">--</strong>
+            </div>
+            <button id="btnAdvanceNext" class="btn-advance-next">
+              Proceed to Next Case <span class="hud-kbd enter-kbd">ENTER</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT TWINS PANEL (RIVAL CARDS) -->
+      <div id="rightPanelTwins" class="hud-twins-column-panel hidden">
+        <div class="twins-panel-header">
+          <div class="twins-header-meta-row">
+            <div class="twins-meta-left">
+              <span class="twins-type-pill rival-match" id="rightTwinsTypePill">Rival AI Match</span>
+              <span class="twins-cases-count">3 Confirmed Twins</span>
+            </div>
+            <div class="twins-meta-right">
+              <span class="twins-selected-badge hidden" id="rightTwinsSelectedBadge">SELECTED</span>
+              <button class="twins-close-btn" id="btnCloseTwinsRight" title="Close Twins (Key W)">&times;</button>
+            </div>
+          </div>
+          <div class="twins-header-dx-row" id="rightTwinsDxRow">
+            <span class="diag-num"><span class="hud-kbd" id="rightTwinsKey">2</span></span>
+            <span class="twins-dx-label" id="rightTwinsLabel">Melanocytic Nevus</span>
+          </div>
+        </div>
+        <div class="twins-cards-scroll" id="rightTwinsCardsRow"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- =========================================================================
+       MODALS: WELCOME, TUTORIAL DEBRIEF, STUDY COMPLETE
+       ========================================================================= -->
+
+  <!-- MODAL 1: STARTUP / PARTICIPANT REGISTRATION -->
+  <div id="modalWelcome" class="study-modal-backdrop">
+    <div class="study-modal-window">
+      <div class="study-modal-header">
+        <div class="study-modal-title">COLESION-AI // Formative Evaluation Study</div>
+        <span class="study-phase-badge tutorial">Briefing</span>
+      </div>
+      <div class="study-modal-body">
+        <p>
+          Welcome to the <strong>COLESION-AI Formative Evaluation Workplace</strong>. This study evaluates clinical decision support under a <em>Co-Learning Paradigm</em>.
+        </p>
+
+        <div class="debrief-lesson-box">
+          <strong>Known Model Baseline:</strong> The AI model exhibits a known baseline accuracy of approx. <strong>75–80% Balanced Accuracy</strong> (it makes incorrect suggestions in ~20–25% of cases). Use the multimodal evidence to verify AI suggestions.
+        </div>
+
+        <div>
+          <label for="inputParticipantId" style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">
+            Participant Name / Identifier:
+          </label>
+          <input type="text" id="inputParticipantId" class="study-input" placeholder="e.g. Dr_Muster_01" style="margin-top: 6px;" autofocus />
+        </div>
+
+        <div style="background: rgba(15, 23, 42, 0.6); padding: 12px; border-radius: 6px; border: 1px solid #334155;">
+          <h4 style="font-size: 11px; color: #38bdf8; text-transform: uppercase; margin-bottom: 6px;">Evaluation Procedure</h4>
+          <ol style="padding-left: 20px; font-size: 12px; color: #cbd5e1; display: flex; flex-direction: column; gap: 4px;">
+            <li><strong>4 Tutorial Cases:</strong> Learn the 4 system states (ML correct, ML error, close rivalry, and OOD gate) with post-case explanations.</li>
+            <li><strong>24 Evaluation Study Cases:</strong> Evaluate real dermoscopy cases through 4 stages: Solo &rarr; AI Reveal &rarr; Deliberation &rarr; Sign-Off.</li>
+            <li><strong>Hotkeys:</strong> Keys <span class="hud-kbd">1</span>–<span class="hud-kbd">8</span> for diagnosis, <span class="hud-kbd">Q</span>/<span class="hud-kbd">E</span> for heatmap, Hold <span class="hud-kbd">W</span> for twins, <span class="hud-kbd enter-kbd">ENTER</span> to lock.</li>
+          </ol>
+        </div>
+      </div>
+      <div class="study-modal-footer">
+        <button id="btnStartTutorial" class="study-btn-primary">
+          Start Onboarding Tutorial (4 Cases) &rarr;
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: POST-TUTORIAL CASE DEBRIEF -->
+  <div id="modalTutorialDebrief" class="study-modal-backdrop hidden">
+    <div class="study-modal-window">
+      <div class="study-modal-header">
+        <div class="study-modal-title" id="debriefModalTitle">Tutorial Case 1 of 4: Debrief</div>
+        <span class="study-phase-badge tutorial" id="debriefPhaseBadge">Tutorial Feedback</span>
+      </div>
+      <div class="study-modal-body">
+        <div class="debrief-truth-box">
+          <div class="debrief-truth-item">
+            <h4>True Histopathology (Ground Truth):</h4>
+            <div class="val" id="debriefGroundTruth">--</div>
+          </div>
+          <div class="debrief-truth-item">
+            <h4>AI Model Suggestion:</h4>
+            <div class="val" id="debriefAiSuggestion">--</div>
+          </div>
+        </div>
+
+        <div class="debrief-lesson-box" id="debriefLessonText">
+          --
+        </div>
+
+        <div style="background: rgba(15, 23, 42, 0.6); padding: 10px 14px; border-radius: 6px; border: 1px solid #334155; font-size: 12px;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span style="color: #94a3b8;">Your Initial Diagnosis:</span>
+            <strong id="debriefYourInitial" style="color: #ffffff;">--</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: #94a3b8;">Your Final Sign-Off:</span>
+            <strong id="debriefYourFinal" style="color: #ffffff;">--</strong>
+          </div>
+        </div>
+      </div>
+      <div class="study-modal-footer">
+        <button id="btnContinueDebrief" class="study-btn-primary">
+          Next Case &rarr;
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: STUDY COMPLETE & SUMMARY KPI DASHBOARD -->
+  <div id="modalStudyComplete" class="study-modal-backdrop hidden">
+    <div class="study-modal-window" style="max-width: 720px;">
+      <div class="study-modal-header">
+        <div class="study-modal-title">COLESION-AI // Evaluation Study Completed!</div>
+        <span class="study-phase-badge study">Study Finalized</span>
+      </div>
+      <div class="study-modal-body">
+        <p>
+          Thank you! You have successfully completed all 24 evaluation study cases. All keystrokes, latencies, decision shifts, and multimodal evidence dwell times have been logged.
+        </p>
+
+        <div class="summary-kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-title">Initial Solo Accuracy</div>
+            <div class="kpi-number" id="kpiInitialAcc">--%</div>
+            <div class="kpi-sub">Stage 0 unassisted baseline</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-title">Final Team Accuracy</div>
+            <div class="kpi-number" id="kpiFinalAcc" style="color: #34d399;">--%</div>
+            <div class="kpi-sub">Human-AI collaborative result</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-title">Diagnostic Gain (&Delta; Acc)</div>
+            <div class="kpi-number" id="kpiGainAcc">--%</div>
+            <div class="kpi-sub">Accuracy delta after AI reveal</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-title">Synergy Ratio (SR)</div>
+            <div class="kpi-number" id="kpiSynergyRatio">--</div>
+            <div class="kpi-sub">&gt; 1.0 indicates true synergy</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-title">Decision Shifts</div>
+            <div class="kpi-number" id="kpiDecisionShifts">--</div>
+            <div class="kpi-sub">Revisions during deliberation</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-title">Appropriate Reliance</div>
+            <div class="kpi-number" id="kpiAppropriateReliance">--%</div>
+            <div class="kpi-sub">Trust correct / override error</div>
+          </div>
+        </div>
+
+        <div class="debrief-lesson-box" id="kpiSummaryNarrative">
+          Telemetry data has been transmitted and safely saved to the local server storage.
+        </div>
+      </div>
+      <div class="study-modal-footer">
+        <button id="btnDownloadJson" class="study-btn-primary" style="background: #059669;">
+          Download Telemetry Log (JSON)
+        </button>
+        <button id="btnRestartStudy" class="study-btn-primary" style="background: #334155;">
+          New Participant Run
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

@@ -116,6 +116,32 @@ html, body {
   color: var(--text-primary);
 }
 
+.hud-accuracy-badge {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(250, 204, 21, 0.45);
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  user-select: none;
+  transition: all 0.2s ease;
+}
+
+.hud-accuracy-badge:hover {
+  background: rgba(245, 158, 11, 0.16);
+  border-color: #facc15;
+  box-shadow: 0 0 10px rgba(250, 204, 21, 0.25);
+}
+
+.hud-accuracy-text {
+  color: #facc15;
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.6px;
+  text-shadow: 0 0 8px rgba(250, 204, 21, 0.4);
+}
+
 /* CASE NAVIGATOR [A / D] - LOCKED AT EXACT HORIZONTAL CENTER */
 .hud-case-nav {
   position: absolute;
@@ -1561,18 +1587,18 @@ html, body {
 
 .hud-twins-column-panel.column-selected {
   border-color: #38bdf8 !important;
-  box-shadow: 0 0 24px rgba(56, 189, 248, 0.28) !important;
-  background: rgba(56, 189, 248, 0.04) !important;
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.45) !important;
+  background: var(--bg-panel) !important;
 }
 
 .hud-twins-column-panel.column-selected .twins-panel-header {
-  background: rgba(56, 189, 248, 0.15) !important;
-  border-bottom-color: #38bdf8 !important;
+  background: var(--bg-surface) !important;
+  border-bottom-color: var(--border-subtle) !important;
 }
 
 .hud-twins-column-panel.column-selected .twins-panel-title {
   color: #38bdf8 !important;
-  text-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+  text-shadow: none !important;
 }
 
 .hud-twins-column-panel.column-dimmed {
@@ -1595,13 +1621,7 @@ html, body {
   background: #38bdf8;
   color: #030712;
   letter-spacing: 0.6px;
-  box-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
-  animation: pulseBadge 1.8s infinite;
-}
-
-@keyframes pulseBadge {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.85; transform: scale(1.04); }
+  box-shadow: none;
 }
 
 .twin-case-num {
@@ -1774,9 +1794,9 @@ html, body {
 }
 
 .hud-twins-column-panel.column-selected .twins-header-dx-row {
-  background: rgba(56, 189, 248, 0.2) !important;
-  border-color: #38bdf8 !important;
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.3) !important;
+  background: rgba(15, 23, 42, 0.75) !important;
+  border-color: rgba(56, 189, 248, 0.5) !important;
+  box-shadow: none !important;
 }
 
 .twins-header-dx-row .diag-num {
